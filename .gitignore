@@ -1,0 +1,8 @@
+dataset*
+*.out
+*.txt
+*.log
+Trash_Box
+*result*
+*checkpoint*
+__*
