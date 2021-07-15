@@ -150,3 +150,20 @@ class Diff2d(nn.Module):
         #predict the input already torch.sigmoided
         #torch.mean(torch.abs(F.softmax(inputs1) - F.softmax(inputs2)))
         return torch.mean(torch.abs(inputs1 - inputs2))
+
+def draw_graph( save_dir, graph_name, epochs, red_list=None, red_label=None, blue_list=None, blue_label=None,  green_list=None, green_label=None, x_label='epoch', y_label='loss' ):
+        graph = plt.figure()
+        if red_list != None:
+            plt.plot(range(epochs), red_list, 'r-', label=red_label )
+        if blue_list != None:
+            plt.plot(range(epochs), blue_list, 'b-', label=blue_label )
+        if green_list != None:
+            plt.plot(range(epochs), green_list, 'g-', label=green_label )
+        plt.legend()
+        plt.xlabel( x_label )
+        plt.ylabel( y_label )
+        plt.grid()
+        
+        graph.savefig('{}{}.pdf'.format(save_dir, graph_name))
+        plt.clf()
+        plt.close()

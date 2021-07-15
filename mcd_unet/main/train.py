@@ -10,13 +10,10 @@ import os
 import model
 from model import *
 from functions_io import * 
-#from functions_io import scaling_image 
-#from functions_io import dice_coeff
 import glob
 from skimage import io
 import random
 import matplotlib.pyplot as plt
-#sys.path.append(os.getcwd())
 import datetime
 
 def train_net(net_g,
@@ -170,31 +167,31 @@ def train_net(net_g,
             mask_flat = mask.view(-1)
             
             #process1 ( g, s1 and s2 update )
-            for c in range(1):
-                opt_g.zero_grad()
-                opt_s1.zero_grad()
-                opt_s2.zero_grad()
-                loss_s = 0
+            #learning segmentation task 
+            opt_g.zero_grad()
+            opt_s1.zero_grad()
+            opt_s2.zero_grad()
+            loss_s = 0
             
-                feat_s =  net_g(img_s)
-                mask_pred_s1 = net_s1(*feat_s)
-                mask_pred_s2 = net_s2(*feat_s)
+            feat_s =  net_g(img_s)
+            mask_pred_s1 = net_s1(*feat_s)
+            mask_pred_s2 = net_s2(*feat_s)
             
-                mask_prob_s1 = torch.sigmoid(mask_pred_s1)
-                mask_prob_s2 = torch.sigmoid(mask_pred_s2)
+            mask_prob_s1 = torch.sigmoid(mask_pred_s1)
+            mask_prob_s2 = torch.sigmoid(mask_pred_s2)
             
-                mask_prob_flat_s1 = mask_prob_s1.view(-1)
-                mask_prob_flat_s2 = mask_prob_s2.view(-1)
+            mask_prob_flat_s1 = mask_prob_s1.view(-1)
+            mask_prob_flat_s2 = mask_prob_s2.view(-1)
             
-                loss_s += criterion(mask_prob_flat_s1, mask_flat)
-                loss_s += criterion(mask_prob_flat_s2, mask_flat)
+            loss_s += criterion(mask_prob_flat_s1, mask_flat)
+            loss_s += criterion(mask_prob_flat_s2, mask_flat)
                 
                 
-                loss_s.backward()
+            loss_s.backward()
 
-                opt_g.step()
-                opt_s1.step()
-                opt_s2.step()
+            opt_g.step()
+            opt_s1.step()
+            opt_s2.step()
 
             #record segmentation loss 
             s_epoch_loss += loss_s.item()
@@ -232,7 +229,6 @@ def train_net(net_g,
             #loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2)
             loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
             loss = loss_s - 0.1 * loss_dis
-            #loss = - loss_dis
             
 
             #stepB時点で計算したsegmentation loss
@@ -263,59 +259,16 @@ def train_net(net_g,
             
                 mask_prob_flat_t1 = mask_prob_t1.view(-1)
                 mask_prob_flat_t2 = mask_prob_t2.view(-1)
-                """
-                loss_s = 0
-                feat_s = net_g(img_s)
-                mask_pred_s1 = net_s1(*feat_s)
-                mask_pred_s2 = net_s2(*feat_s)
-            
-                mask_prob_s1 = torch.sigmoid(mask_pred_s1)
-                mask_prob_s2 = torch.sigmoid(mask_pred_s2)
-            
-                mask_prob_flat_s1 = mask_prob_s1.view(-1)
-                mask_prob_flat_s2 = mask_prob_s2.view(-1)
-
-                feat_t = net_g(img_t)
-                mask_pred_t1 = net_s1(*feat_t)
-                mask_pred_t2 = net_s2(*feat_t)
-
-                mask_prob_t1 = torch.sigmoid(mask_pred_t1)
-                mask_prob_t2 = torch.sigmoid(mask_pred_t2)
-            
-                mask_prob_flat_t1 = mask_prob_t1.view(-1)
-                mask_prob_flat_t2 = mask_prob_t2.view(-1)
-            
-                loss_s += criterion(mask_prob_flat_s1, mask_flat)
-                loss_s += criterion(mask_prob_flat_s2, mask_flat)
-                """
+                
                 
                 #場合によってはloss_dis定数倍も視野
                 
-                #loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2) * 3
                 loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
                 
                 if k == 0 :
                     #print('Step B :' , loss_dis.item() / 2)
                     B_dis = abs(loss_dis.item())
-                    """
-                    with torch.no_grad():
-                        loss_s = 0
-            
-                        feat_s =  net_g(img_s)
-                        mask_pred_s1 = net_s1(*feat_s)
-                        mask_pred_s2 = net_s2(*feat_s)
-                        
-                        mask_prob_s1 = torch.sigmoid(mask_pred_s1)
-                        mask_prob_s2 = torch.sigmoid(mask_pred_s2)
-                        
-                        mask_prob_flat_s1 = mask_prob_s1.view(-1)
-                        mask_prob_flat_s2 = mask_prob_s2.view(-1)
-            
-                        loss_s += criterion(mask_prob_flat_s1, mask_flat)
-                        loss_s += criterion(mask_prob_flat_s2, mask_flat)
-
-                        s_epoch_loss_after_B += loss_s.item()
-                    """
+                    
                     C_dis = abs(loss_dis.item())
                     s_epoch_loss_after_B += loss_s.item()
                     d_epoch_loss_after_B += abs(loss_dis.item())
@@ -460,14 +413,7 @@ def train_net(net_g,
     d = dt_now.day
     h = dt_now.hour
     m = dt_now.minute
-    
-    
-    
-    #print('Checkpoint saved !')
-    #print('s_Validation Dice Coeff: {}'.format(valdice_list[s_bestepoch - 1]))
-    #print('d_Validation Dice Coeff: {}'.format(valdice_list[d_bestepoch - 1]))
-    
-    # plot learning curve
+
     loss_s_graph = plt.figure()
     plt.plot(range(epochs), tr_s_loss_list, 'r-', label='train_loss')
     plt.plot(range(epochs), val_s_loss_list, 'b-', label='val_loss')
@@ -552,6 +498,7 @@ def get_args():
     return parser.parse_args()
 
 def get_img_list(name, cell):
+    
     trains = []
     absolute = os.path.abspath('./dataset_smiyaki')    
     train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
@@ -589,6 +536,7 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
+
     net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
@@ -596,9 +544,7 @@ if __name__ == '__main__':
     net_g.to(device=device)
     net_s1.to(device=device)
     net_s2.to(device=device)
-    # faster convolutions, but more memory
-    # cudnn.benchmark = True
-    
+        
     dir_result = './{}'.format(args.out_dir)
     dir_checkpoint = '{}/checkpoint'.format(dir_result)
     os.makedirs(dir_result, exist_ok=True)
@@ -619,11 +565,10 @@ if __name__ == '__main__':
                   target=args.target,
                   size=args.size,
                   num_k=args.num_k)
-                  #img_scale=args.scale,
-                  #val_percent=args.val / 100)
+                  
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
-        #logging.info('Saved interrupt')
+        
         try:
             sys.exit(0)
         except SystemExit:
