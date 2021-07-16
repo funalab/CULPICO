@@ -132,6 +132,10 @@ def train_net(net_g,
     tr_d_loss_list_B = []
     val_s_loss_list = []
     val_d_loss_list = []
+    val_iou_s1_list = []
+    val_iou_s2_list = []
+    val_iou_t1_list = []
+    val_iou_t2_list = []
     valdice_list = []
     min_val_s_loss = 10000.0;
     min_val_d_loss = 10000.0;
@@ -321,6 +325,10 @@ def train_net(net_g,
         CtoA.append(dis - dis_after_B)
         #---- Val section
         val_dice = 0
+        val_iou_s1 = 0
+        val_iou_s2 = 0
+        val_iou_t1 = 0
+        val_iou_t2 = 0
         val_s_loss = 0
         val_d_loss = 0
         with torch.no_grad():
@@ -354,14 +362,24 @@ def train_net(net_g,
                 val_s_loss += loss.item()
 
                 #dice は一旦s1で計算
-                mask_bin = (mask_prob_s1[0] > 0.5).float()
-                val_dice += dice_coeff(mask_bin, mask.float()).item()
+                
+                mask_bin_s1 = (mask_prob_s1[0] > 0.5).float()
+                mask_bin_s2 = (mask_prob_s2[0] > 0.5).float()
+                val_iou_s1 += iou_loss(mask_bin_s1, mask.float(), device).item()
+                val_iou_s2 += iou_loss(mask_bin_s2, mask.float(), device).item()
+                #val_dice += dice_coeff(mask_bin, mask.float(), device).item()
 
-            for k, bt in enumerate(val_t):    
+            for k, bt in enumerate(val_t):
                 #discrepancy loss
                 img_t = np.array(bt[0]).astype(np.float32)
                 img_t = img_t.reshape([1, img_t.shape[-2], img_t.shape[-1]])
                 img_t =  torch.from_numpy(img_t).unsqueeze(0).cuda(device)
+                ###
+                mask = np.array(bt[1]).astype(np.float32)
+                mask = mask.reshape([1, mask.shape[-2], mask.shape[-1]])
+                mask = torch.from_numpy(mask).unsqueeze(0).cuda(device)
+                mask_flat = mask.view(-1)
+                ####
                 
                 feat_t = net_g(img_t)
                 mask_pred_t1 = net_s1(*feat_t)
@@ -373,9 +391,15 @@ def train_net(net_g,
                 mask_prob_flat_t1 = mask_prob_t1.view(-1)
                 mask_prob_flat_t2 = mask_prob_t2.view(-1)
 
-                #loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2)
+                
+                mask_bin_1 = (mask_prob_t1[0] > 0.5).float()
+                mask_bin_2 = (mask_prob_t2[0] > 0.5).float()
+                val_iou_t1 += iou_loss(mask_bin_1, mask.float(), device).item()
+                val_iou_t2 += iou_loss(mask_bin_2, mask.float(), device).item()
+                
                 loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-                val_d_loss += loss_dis.item() 
+                val_d_loss += loss_dis.item()
+                
             
                 
         current_val_s_loss = val_s_loss / len_val_s
@@ -385,8 +409,12 @@ def train_net(net_g,
             
         val_s_loss_list.append(current_val_s_loss)
         val_d_loss_list.append(current_val_d_loss)
-        valdice_list.append(val_dice / len_val_s)
         
+        #valdice_list.append(val_dice / len_val_s)
+        val_iou_s1_list.append( val_iou_s1 / len_val_s )
+        val_iou_s2_list.append( val_iou_s2 / len_val_s )
+        val_iou_t1_list.append( val_iou_t1 / len_val_t )
+        val_iou_t2_list.append( val_iou_t2 / len_val_t )
 
         s_best_g = net_g.state_dict()
         s_best_s = net_s1.state_dict()
@@ -422,8 +450,14 @@ def train_net(net_g,
     draw_graph( dir_graphs, 'discrepancy_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
 
     #dice graph
-    draw_graph( dir_graphs, 'dice', epochs, green_list=val_dice_list,  green_label='validation_dice' )
+    #draw_graph( dir_graphs, 'dice', epochs, green_list=val_dice_list,  green_label='validation_dice' )
 
+    #source iou graph
+    draw_graph( dir_graphs, 'source_IoU', epochs, blue_list=val_iou_s1_list,  blue_label='s1_IoU', green_list=val_iou_s2_list,  green_label='s2_IoU', y_label='IoU' )
+
+    #target iou graph
+    draw_graph( dir_graphs, 'target_IoU', epochs, red_list=val_iou_t1_list,  red_label='t1_IoU', green_list=val_iou_t2_list,  green_label='t2_IoU', y_label='IoU' )
+    
     #ABC_s_graph
     draw_graph( dir_graphs, 'ABC_seg', epochs, blue_list=tr_s_loss_list_B, blue_label='Step B', red_list=tr_s_loss_list, red_label='Step A', green_list=tr_s_loss_list_C,  green_label='Step C', y_label='Δlos' )
 
