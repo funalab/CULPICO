@@ -167,3 +167,32 @@ def draw_graph( save_dir, graph_name, epochs, red_list=None, red_label=None, blu
         graph.savefig('{}{}.pdf'.format(save_dir, graph_name))
         plt.clf()
         plt.close()
+
+def get_img_list(name, cell):
+    
+    trains = []
+    absolute = os.path.abspath('../../dataset_smiyaki')    
+    train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
+    for trainfile in train_files:
+        ph_lab = [0] * 2
+        #*set*/
+        path_phase_and_lab = glob.glob(f"{trainfile}/*")
+        #print(f"{trainfile}")
+        for path_img in path_phase_and_lab:
+            #print("hoge")
+            img = io.imread(path_img)
+            if name in path_img:
+                #original unet scaling (subtracting by median)
+                img = scaling_image(img)
+                #img = img - np.median(img)
+
+                #ndim==2でlistに格納
+                ph_lab[0] = img
+                #img.reshape([1, img.shape[-2], img.shape[-1]])
+            else:
+                img = img / 255
+                ph_lab[1] = img
+                #img.reshape([1, img.shape[-2], img.shape[-1]])
+
+        trains.append(ph_lab)
+    return trains
