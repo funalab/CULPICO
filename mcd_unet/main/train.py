@@ -413,62 +413,24 @@ def train_net(net_g,
     d = dt_now.day
     h = dt_now.hour
     m = dt_now.minute
-
-    loss_s_graph = plt.figure()
-    plt.plot(range(epochs), tr_s_loss_list, 'r-', label='train_loss')
-    plt.plot(range(epochs), val_s_loss_list, 'b-', label='val_loss')
-    plt.legend()
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.grid()
-    loss_s_graph.savefig('{}seg_loss_{}{}{}_{}{}.pdf'.format(dir_result, y, mon, d, h, m))
-
-    loss_d_graph = plt.figure()
-    plt.plot(range(epochs), tr_d_loss_list, 'r-', label='train_loss')
-    plt.plot(range(epochs), val_d_loss_list, 'b-', label='val_loss')
-    plt.legend()
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.grid()
-    loss_d_graph.savefig('{}dis_loss_{}{}{}_{}{}.pdf'.format(dir_result, y, mon, d, h, m))
     
-    dice_graph = plt.figure()
-    plt.plot(range(epochs), valdice_list, 'g-', label='val_dice')
-    plt.legend()
-    plt.xlabel('epoch')
-    plt.ylabel('dice')
-    plt.grid()
-    dice_graph.savefig('{}dice_{}{}{}_{}{}.pdf'.format(dir_result, y, mon, d, h, m))
+    #segmentation loss graph
+    draw_graph( dir_result, 'segmentation_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
 
-    ABC_s_graph = plt.figure()
-    plt.plot(range(epochs), tr_s_loss_list, 'r-', label='Step A')
-    plt.plot(range(epochs), tr_s_loss_list_B, 'b-', label='Step B')
-    plt.plot(range(epochs), tr_s_loss_list_C, 'g-', label='Step C')
-    plt.legend()
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.grid()
-    ABC_s_graph.savefig('{}ABCseg_{}{}{}_{}{}.pdf'.format(dir_result, y, mon, d, h, m))
+    #discrepancy loss graph
+    draw_graph( dir_result, 'discrepancy_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
 
-    ABC_d_graph = plt.figure()
-    plt.plot(range(epochs), tr_d_loss_list, 'r-', label='Step A')
-    plt.plot(range(epochs), tr_d_loss_list_B, 'b-', label='Step B')
-    plt.plot(range(epochs), tr_d_loss_list_C, 'g-', label='Step C')
-    plt.legend()
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.grid()
-    ABC_d_graph.savefig('{}ABCdis_{}{}{}_{}{}.pdf'.format(dir_result, y, mon, d, h, m))
+    #dice graph
+    draw_graph( dir_result, 'dice', epochs, green_list=val_dice_list,  green_label='validation_dice' )
 
-    A_to_B_to_C_graph = plt.figure()
-    plt.plot(range(epochs), AtoB, 'r-', label='Step A to Step B')
-    plt.plot(range(epochs), BtoC, 'b-', label='Step B to Step C')
-    plt.plot(range(epochs), CtoA, 'g-', label='Step C to Step A')
-    plt.legend()
-    plt.xlabel('epoch')
-    plt.ylabel('Δ loss')
-    plt.grid()
-    A_to_B_to_C_graph.savefig('{}A_to_B_to_C_{}{}{}_{}{}.pdf'.format(dir_result, y, mon, d, h, m))
+    #ABC_s_graph
+    draw_graph( dir_result, 'ABC_seg', epochs, blue_list=tr_s_loss_list_B, blue_label='Step B', red_list=tr_s_loss_list, red_label='Step A', green_list=tr_s_loss_list_C,  green_label='Step C', y_label='Δlos' )
+
+    #ABC_d_graph
+    draw_graph( dir_result, 'ABC_dis', epochs, blue_list=tr_d_loss_list_B, blue_label='Step B', red_list=tr_d_loss_list, red_label='Step A', green_list=tr_d_loss_list_C,  green_label='Step C', y_label='Δloss' )
+
+    #A_to_B_to_C_grapf
+    draw_graph( dir_result, 'A_to_B_to_C', epochs, blue_list=BtoC, blue_label='Step B to Step C', red_list=AtoB, red_label='Step A to Step B', green_list=CtoA,  green_label='Step C to Step A', y_label='Δloss' )
     
 
 def get_args():
