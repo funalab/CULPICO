@@ -31,7 +31,9 @@ def train_net(net_g,
               source='HeLa',
               target='3T3',
               size=128,
-              num_k=2):
+              num_k=2,
+              co_B=0.1
+):
 
     path_w = f"{dir_result}output.txt"
 
@@ -493,6 +495,8 @@ def get_args():
                         help='out_dir?', dest='out_dir')
     parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
                         help='gpu_num?', dest='gpu_num')
+    parser.add_argument('-cob', '--co_stepB', type=float, nargs='?', default=0.1,
+                        help='the coefficient in B?', dest='co_B')
     
     return parser.parse_args()
 
@@ -537,7 +541,9 @@ if __name__ == '__main__':
                   source=args.source,
                   target=args.target,
                   size=args.size,
-                  num_k=args.num_k)
+                  num_k=args.num_k,
+                  co_B=args.co_B
+        )
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
