@@ -161,9 +161,9 @@ def train_net(net_g,
             mask = np.array([i[1] for i in bs]).astype(np.float32)
             img_t = np.array([i[0] for i in bt]).astype(np.float32)
             
-            img_s = torch.from_numpy(img_s).cuda()
-            img_t = torch.from_numpy(img_t).cuda()
-            mask = torch.from_numpy(mask).cuda()
+            img_s = torch.from_numpy(img_s).cuda(device)
+            img_t = torch.from_numpy(img_t).cuda(device)
+            mask = torch.from_numpy(mask).cuda(device)
             mask_flat = mask.view(-1)
             
             #process1 ( g, s1 and s2 update )
@@ -329,8 +329,8 @@ def train_net(net_g,
                 mask = np.array(bs[1]).astype(np.float32)
                 mask = mask.reshape([1, mask.shape[-2], mask.shape[-1]])
 
-                img_s =  torch.from_numpy(img_s).unsqueeze(0).cuda()
-                mask = torch.from_numpy(mask).unsqueeze(0).cuda()
+                img_s =  torch.from_numpy(img_s).unsqueeze(0).cuda(device)
+                mask = torch.from_numpy(mask).unsqueeze(0).cuda(device)
                 
                 mask_flat = mask.view(-1)
 
@@ -360,7 +360,7 @@ def train_net(net_g,
                 #discrepancy loss
                 img_t = np.array(bt[0]).astype(np.float32)
                 img_t = img_t.reshape([1, img_t.shape[-2], img_t.shape[-1]])
-                img_t =  torch.from_numpy(img_t).unsqueeze(0).cuda()
+                img_t =  torch.from_numpy(img_t).unsqueeze(0).cuda(device)
                 
                 feat_t = net_g(img_t)
                 mask_pred_t1 = net_s1(*feat_t)
@@ -456,12 +456,14 @@ def get_args():
                         help='how many steps to repeat the generator update', dest='num_k')
     parser.add_argument('-o', '--output', metavar='O', type=str, nargs='?', default='result',
                         help='out_dir?', dest='out_dir')
+    parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
+                        help='gpu_num?', dest='gpu_num')
     
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
 
     # Change here to adapt to your data
     # n_channels=3 for RGB images
