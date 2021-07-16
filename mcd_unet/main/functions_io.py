@@ -7,6 +7,10 @@ import numpy as np
 import skimage.io
 import skimage.transform
 import random
+from skimage import io
+import os
+import glob
+import matplotlib.pyplot as plt
 
 class DiceCoeff(Function):
     """Dice coeff for individual examples"""
@@ -56,7 +60,7 @@ class IOULoss(Function):
         self.intersection = torch.sum( input * target )
         self.total = torch.sum( input + target )
         self.union = self.total - self.intersection
-        t = ( self.intersection.float() + eps ) / ( self.union.float + eps )
+        t = ( self.intersection.float() + eps ) / ( self.union.float() + eps )
                 
         return t
 

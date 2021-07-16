@@ -447,7 +447,7 @@ def train_net(net_g,
     draw_graph( dir_graphs, 'segmentation_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
 
     #discrepancy loss graph
-    draw_graph( dir_graphs, 'discrepancy_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
+    draw_graph( dir_graphs, 'discrepancy_loss', epochs, blue_list=tr_d_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
 
     #dice graph
     #draw_graph( dir_graphs, 'dice', epochs, green_list=val_dice_list,  green_label='validation_dice' )
