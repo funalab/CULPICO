@@ -26,6 +26,7 @@ def train_net(net_g,
               first_num_of_kernels=64,
               dir_checkpoint='checkpoint/',
               dir_result='result/',
+              dir_graphs=f'result/',
               optimizer_method = 'Adam',
               source='HeLa',
               target='3T3',
@@ -415,22 +416,22 @@ def train_net(net_g,
     m = dt_now.minute
     
     #segmentation loss graph
-    draw_graph( dir_result, 'segmentation_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
+    draw_graph( dir_graphs, 'segmentation_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
 
     #discrepancy loss graph
-    draw_graph( dir_result, 'discrepancy_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
+    draw_graph( dir_graphs, 'discrepancy_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
 
     #dice graph
-    draw_graph( dir_result, 'dice', epochs, green_list=val_dice_list,  green_label='validation_dice' )
+    draw_graph( dir_graphs, 'dice', epochs, green_list=val_dice_list,  green_label='validation_dice' )
 
     #ABC_s_graph
-    draw_graph( dir_result, 'ABC_seg', epochs, blue_list=tr_s_loss_list_B, blue_label='Step B', red_list=tr_s_loss_list, red_label='Step A', green_list=tr_s_loss_list_C,  green_label='Step C', y_label='Δlos' )
+    draw_graph( dir_graphs, 'ABC_seg', epochs, blue_list=tr_s_loss_list_B, blue_label='Step B', red_list=tr_s_loss_list, red_label='Step A', green_list=tr_s_loss_list_C,  green_label='Step C', y_label='Δlos' )
 
     #ABC_d_graph
-    draw_graph( dir_result, 'ABC_dis', epochs, blue_list=tr_d_loss_list_B, blue_label='Step B', red_list=tr_d_loss_list, red_label='Step A', green_list=tr_d_loss_list_C,  green_label='Step C', y_label='Δloss' )
+    draw_graph( dir_graphs, 'ABC_dis', epochs, blue_list=tr_d_loss_list_B, blue_label='Step B', red_list=tr_d_loss_list, red_label='Step A', green_list=tr_d_loss_list_C,  green_label='Step C', y_label='Δloss' )
 
     #A_to_B_to_C_grapf
-    draw_graph( dir_result, 'A_to_B_to_C', epochs, blue_list=BtoC, blue_label='Step B to Step C', red_list=AtoB, red_label='Step A to Step B', green_list=CtoA,  green_label='Step C to Step A', y_label='Δloss' )
+    draw_graph( dir_graphs, 'A_to_B_to_C', epochs, blue_list=BtoC, blue_label='Step B to Step C', red_list=AtoB, red_label='Step A to Step B', green_list=CtoA,  green_label='Step C to Step A', y_label='Δloss' )
     
 
 def get_args():
@@ -482,8 +483,10 @@ if __name__ == '__main__':
         
     dir_result = './{}'.format(args.out_dir)
     dir_checkpoint = '{}/checkpoint'.format(dir_result)
+    dir_graphs = '{}/graphs'.format(dir_result)
     os.makedirs(dir_result, exist_ok=True)
     os.makedirs(dir_checkpoint, exist_ok=True)
+    os.makedirs(dir_graphs, exist_ok=True)
     try:
         train_net(net_g=net_g,
                   net_s1=net_s1,
@@ -495,6 +498,7 @@ if __name__ == '__main__':
                   device=device,
                   dir_checkpoint=f'{dir_checkpoint}/',
                   dir_result=f'{dir_result}/',
+                  dir_graphs=f'{dir_graphs}/',
                   optimizer_method=args.optimizer_method,
                   source=args.source,
                   target=args.target,
