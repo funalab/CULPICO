@@ -34,10 +34,10 @@ class DiceCoeff(Function):
 
         return grad_input, grad_target
 
-def dice_coeff(input, target):
+def dice_coeff(input, target, device):
     """Dice coeff for batches"""
     if input.is_cuda:
-        s = torch.FloatTensor(1).cuda().zero_()
+        s = torch.FloatTensor(1).cuda(device).zero_()
     else:
         s = torch.FloatTensor(1).zero_()
 
@@ -46,7 +46,31 @@ def dice_coeff(input, target):
 
     return s / (i + 1)
 
+class IOULoss(Function):
+    
+    def forward( self, input, target ):
+        self.save_for_backward( input, target )
+        eps = 0.0001
+        input = input.view(-1)
+        target = target.view(-1)
+        self.intersection = torch.sum( input * target )
+        self.total = torch.sum( input + target )
+        self.union = self.total - self.intersection
+        t = ( self.intersection.float() + eps ) / ( self.union.float + eps )
+                
+        return t
 
+def iou_loss( input, target, device ):
+    if input.is_cuda:
+        s = torch.FloatTensor(1).cuda(device).zero_()
+    else:
+        s = torch.FloatTensor(1).zero_()
+
+    for i, c in enumerate(zip(input, target)):
+        s = s + IOULoss().forward(c[0], c[1])
+
+    return s / (i + 1)
+    
 def random_rotate_image(image: np.ndarray, return_angle: bool = False, spin: int = None, flip: bool = None):
     """
     imageを4方向のうちランダムに回転する。
