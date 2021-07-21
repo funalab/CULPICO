@@ -449,7 +449,7 @@ def train_net(net_g,
     draw_graph( dir_graphs, 'segmentation_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
 
     #discrepancy loss graph
-    draw_graph( dir_graphs, 'discrepancy_loss', epochs, blue_list=tr_d_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
+    draw_graph( dir_graphs, 'discrepancy_loss', epochs, blue_list=tr_d_loss_list, blue_label='train', red_list=val_d_loss_list, red_label='validation' )
 
     #dice graph
     #draw_graph( dir_graphs, 'dice', epochs, green_list=val_dice_list,  green_label='validation_dice' )
@@ -489,7 +489,7 @@ def get_args():
                         help='target cell', dest='target')
     parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=128,
                         help='Image size', dest='size')
-    parser.add_argument('-nk', '--num_k', metavar='NK', type=int, nargs='?', default=4,
+    parser.add_argument('-nk', '--num_k', metavar='NK', type=int, nargs='?', default=3,
                         help='how many steps to repeat the generator update', dest='num_k')
     parser.add_argument('-o', '--output', metavar='O', type=str, nargs='?', default='result',
                         help='out_dir?', dest='out_dir')
