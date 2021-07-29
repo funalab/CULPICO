@@ -111,8 +111,8 @@ def train_net(net_g,
     random.seed(0)
     random.shuffle(trains_s)
     random.shuffle(trains_t)
-    n_s = 72
-    n_t = 47
+    n_s = 124
+    n_t = 77
 
     #for using 同数data of source と target 
     d = (len(trains_s) - n_s) - (len(trains_t) - n_t)
@@ -235,7 +235,7 @@ def train_net(net_g,
             
             #loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2)
             loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-            loss = loss_s - 0.1 * loss_dis
+            loss = loss_s - co_B * loss_dis
             
 
             #stepB時点で計算したsegmentation loss
