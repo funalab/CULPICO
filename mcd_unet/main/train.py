@@ -436,8 +436,7 @@ def train_net(net_g,
             d_bestepoch = epoch + 1
             with open(path_w, mode='a') as f:
                 f.write('val dis loss is update \n')
-
-    
+                
     dt_now = datetime.datetime.now()
     y = dt_now.year
     mon = dt_now.month
@@ -521,9 +520,11 @@ if __name__ == '__main__':
         
     dir_result = './{}'.format(args.out_dir)
     dir_checkpoint = '{}/checkpoint'.format(dir_result)
-    dir_graphs = '{}/graphs'.format(dir_result)
+    current_graphs = './graphs'
+    dir_graphs = '{}/{}'.format(current_graphs, args.out_dir)
     os.makedirs(dir_result, exist_ok=True)
     os.makedirs(dir_checkpoint, exist_ok=True)
+    os.makedirs(current_graphs, exist_ok=True)
     os.makedirs(dir_graphs, exist_ok=True)
     try:
         train_net(net_g=net_g,
