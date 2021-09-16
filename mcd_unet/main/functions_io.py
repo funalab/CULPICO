@@ -11,6 +11,10 @@ from skimage import io
 import os
 import glob
 import matplotlib.pyplot as plt
+from PIL import Image
+from torchvision import transforms
+import random
+from torchvision.transforms import functional as tvf
 
 class DiceCoeff(Function):
     """Dice coeff for individual examples"""
@@ -224,3 +228,77 @@ def get_img_list(name, cell):
 
         trains.append(ph_lab)
     return trains
+
+def mirror_padding( img, h, w ):
+
+    ### size check ###
+    if img.shape[0] > h or img.shape[1] > w:
+        print( "img is larger than specified size" ) 
+        return img
+
+    ### mirror padding process ###
+    img_h = img.shape[0]
+    img_w = img.shape[1]
+    
+    append_ha = np.empty( ( 0, img_w ), int )
+    append_hb = np.empty( ( 0, img_w ), int )
+
+    
+    diff_h = h - img_h
+    ha = int( diff_h / 2 )
+    hb = int( diff_h / 2 ) if diff_h % 2 == 0 else int( diff_h / 2 ) + 1
+    
+    for i in range( ha ):
+        append_ha = np.append( append_ha, img[ha-1-i].reshape( 1, img_w ), axis=0 )
+    for i in range( hb ):
+        append_hb = np.append( append_hb, img[img_h-1-i].reshape( 1, img_w ), axis=0 )
+
+    #append above & below      
+    img = np.append(append_ha, img, axis=0)
+    img = np.append(img, append_hb, axis=0)
+
+    diff_w = w - img_w
+    wl = int( diff_w / 2 )
+    
+    append_wl = np.empty( ( 0, wl ), int )
+    
+    for i in range( h ):
+        append_wl = np.append( append_wl, img[i][wl-1::-1].reshape( 1, wl ), axis=0 )
+                
+    
+    wr = wl if diff_w % 2 == 0 else wl+1
+   
+    append_wr = np.empty( ( 0, wr ), int )        
+    
+    for i in range( h ):
+        
+        append_wr = np.append( append_wr, img[i][img_w-1:img_w-wr-1:-1].reshape( 1, wr ), axis=0 )
+
+    #append left & right                
+    img = np.append(append_wl, img, axis=1)
+    img = np.append(img, append_wr, axis=1) 
+        
+    return img
+
+def random_cropping( img, lab, size ):
+
+    #img, labはnp.ndarrayを想定
+
+    trans = transforms.RandomCrop( ( size, size ) )
+
+    pil_img = Image.fromarray( img )
+    pil_lab = Image.fromarray( lab )
+
+    i, j, h, w = transforms.RandomCrop.get_params( pil_img, output_size=( size, size ) )
+
+    crop_img = np.array( tvf.crop( pil_img, i, j, h, w ) )
+
+    crop_lab = np.array( tvf.crop( pil_lab, i, j, h, w ) )
+
+    crop_list = [0] * 2
+    
+    crop_list[0] = crop_img
+    crop_list[1] = crop_lab
+
+    return crop_list
+    
