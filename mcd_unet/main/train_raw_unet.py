@@ -56,12 +56,12 @@ def train_net(net,
     criterion = nn.BCELoss()
     
     absolute = os.path.abspath('../../dataset_smiyaki/training_data/{cell}_raw')
-    
+"""    
     if size == 128: 
         train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
     elif size == 640:
         train_files = glob.glob(f"{absolute}/training_data/{cell}_640/*")
-
+"""
 
     trains = []
     name = "phase"
@@ -113,9 +113,15 @@ def train_net(net,
         k[0] = mirror_padding(k[0], 1400, 1680)
         k[1] = mirror_padding(k[1], 1400, 1680)
     #####1000x1200val画像を6分割して固定(list化)
+    #mirror paddingによって1024x1536に拡大
     for l in val:
         l[0] = mirror_padding(k[0], 1024, 1536)
         l[1] = mirror_padding(k[1], 1024, 1536)
+
+    #6分割( valの枚数 = 1 を想定 )
+    val_sepa = cutting_img( val, 512 )
+    len_val = len( val_sepa )
+    print( "len of val_sepa is {}".format( len( val_sepa ) ) )
     
     for epoch in range(epochs):
         count = 0
@@ -160,7 +166,7 @@ def train_net(net,
         val_dice = 0
         val_loss = 0
         with torch.no_grad():
-            for j, b in enumerate(val):
+            for j, b in enumerate( val_sepa ):
                 img = np.array(b[0]).astype(np.float32)
                 img = img.reshape([1, img.shape[-2], img.shape[-1]])
                 mask = np.array(b[1]).astype(np.float32)
@@ -202,7 +208,8 @@ def train_net(net,
                 
                 #if j == len_val - 1:
                 #    print('{} validations completed'.format(len_val))
-            
+
+        
         valloss_list.append(val_loss / len_val)
         valdice_list.append(val_dice / len_val)
         if (val_loss / len_val) < min_val_loss:
