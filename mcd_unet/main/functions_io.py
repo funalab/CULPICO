@@ -15,6 +15,9 @@ from PIL import Image
 from torchvision import transforms
 import random
 from torchvision.transforms import functional as tvf
+import copy
+
+
 
 class DiceCoeff(Function):
     """Dice coeff for individual examples"""
@@ -302,3 +305,23 @@ def random_cropping( img, lab, size ):
 
     return crop_list
     
+
+def cutting_img( img_list, size ):
+    height = img_list[0].shape[0]
+    width = img_list[0].shape[1]
+
+    n_h = int( height / size )
+    n_w = int( width / size )
+
+    cut_list = []
+    cut_imgs = [0] * 2
+    for i in range ( n_h ):
+        for j in range ( n_w ):
+            
+            cut_imgs[0] = img_list[0][ i * size : i * size + size , j * size : j * size + size ]            
+            cut_imgs[1] = img_list[1][ i * size : i * size + size , j * size : j * size + size ] 
+            
+            cut_list.append( copy.copy(cut_imgs) )
+            
+    return cut_list
+
