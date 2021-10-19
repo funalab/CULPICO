@@ -13,8 +13,7 @@ import model
 from model import UNet
 import functions_io
 from functions_io import * 
-#from functions_io import scaling_image 
-#from functions_io import dice_coeff
+
 import glob
 from skimage import io
 import random
@@ -32,18 +31,7 @@ def train_net(net,
               optimizer_method = 'Adam',
               cell='HeLa',
               size=128):
-              #val_percent=0.1,
-              #save_cp=True,
-              #img_scale=0.5
-
-    #dataset = BasicDataset(dir_img, dir_mask, img_scale)
-    #n_val = int(len(dataset) * val_percent)
-    #n_train = len(dataset) - n_val
-    #train, val = random_split(dataset, [n_train, n_val])
-    #train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    #val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True, drop_last=True)
-
-    #global_step = 0
+              
     print('first num of kernels:', first_num_of_kernels)
     print('optimizer method:', optimizer_method)
     if optimizer_method == 'SGD':
@@ -64,48 +52,22 @@ def train_net(net,
             weight_decay=0,
             amsgrad=False
         )
-    
-    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min' if net.n_classes > 1 else 'max', patience=2)
 
     criterion = nn.BCELoss()
     
-    trains = []
-    name = "phase"
-    absolute = os.path.abspath('./dataset_smiyaki')
-    if cell=='HeLa':
-        #split train and validation
-        if size == 128:
-            n=72
-        elif size == 640:
-            n=4
-        else:
-            print('unexpected image size')
-            
-        print('training HeLa images')
-    elif cell=='3T3':
-        if size == 128:
-            n=97
-        elif size == 640:
-            n=3
-            
-        else:
-            print('unexpected image size')
-            
-        print('training 3T3 images')
-
-    elif cell=='PNT':
-        if size == 128:
-            n=212
-        else:
-            print('unexpected image size')
-    else:
-        print('there is no data of cell named {}'.format(cell))
-
+    absolute = os.path.abspath('../../dataset_smiyaki/training_data/{cell}_raw')
+    
     if size == 128: 
         train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
-    elif size ==640:
+    elif size == 640:
         train_files = glob.glob(f"{absolute}/training_data/{cell}_640/*")
-        
+
+
+    trains = []
+    name = "phase"
+
+    trainfiles = glob.glob(f"{absolute}/*")
+    
     for trainfile in train_files:
         ph_lab = [0] * 2
         #*set*/
@@ -131,10 +93,10 @@ def train_net(net,
 
         trains.append(ph_lab)
         
-    random.seed(0)
+    #random.seed(0)
     random.shuffle(trains)
     
-    #n = 72
+    n = 1
     ids = {'train': trains[:-n], 'val': trains[-n:]}
     len_train = len(ids['train'])
     len_val = len(ids['val'])
@@ -142,17 +104,30 @@ def train_net(net,
     valloss_list = []
     valdice_list = []
     min_val_loss = 10000.0;
+
+    #####
+    tmp_train = ids['train']
+    val = ids['val']
+    #####train画像を1400x1680にmirror padding
+    for k in tmp_train:
+        k[0] = mirror_padding(k[0], 1400, 1680)
+        k[1] = mirror_padding(k[1], 1400, 1680)
+    #####1000x1200val画像を6分割して固定(list化)
+    for l in val:
+        l[0] = mirror_padding(k[0], 1024, 1536)
+        l[1] = mirror_padding(k[1], 1024, 1536)
     
     for epoch in range(epochs):
         count = 0
-        train = ids['train']
-        val = ids['val']
-        random.shuffle(train)
+        train = []
+        #train画像(phase, label)からランダムクロップしてlistにまとめる
+        for train_img_list in tmp_train:
+            train.append( random_cropping( train_img_list[0], train_img_list[1], 512 ) )
         
         #---- Train section
         epoch_loss = 0
         for i, b in enumerate(batch(train, batch_size)):
-
+            
             img = np.array([i[0] for i in b]).astype(np.float32)
             mask = np.array([i[1] for i in b]).astype(np.float32)
 
