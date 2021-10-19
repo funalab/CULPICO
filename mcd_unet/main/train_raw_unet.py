@@ -55,32 +55,35 @@ def train_net(net,
 
     criterion = nn.BCELoss()
     
-    absolute = os.path.abspath('../../dataset_smiyaki/training_data/{cell}_raw')
-"""    
+    absolute = os.path.abspath(f'../../dataset_smiyaki/training_data/{cell}_raw')
+    
+    """    
     if size == 128: 
         train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
     elif size == 640:
         train_files = glob.glob(f"{absolute}/training_data/{cell}_640/*")
-"""
+    """
+
 
     trains = []
     name = "phase"
 
-    trainfiles = glob.glob(f"{absolute}/*")
+    train_files = glob.glob(f"{absolute}/*")
     
     for trainfile in train_files:
+        
         ph_lab = [0] * 2
         #*set*/
         path_phase_and_lab = glob.glob(f"{trainfile}/*")
-        #print(f"{trainfile}")
+        
         for path_img in path_phase_and_lab:
             #print("hoge")
             img = io.imread(path_img)
             if name in path_img:
                 #original unet scaling (subtracting by median)
                 ####z scoreに変更中！！
-                img = standardize_image(img, True)
-                #img = scaling_image(img)
+                #img = standardize_image(img, True)
+                img = scaling_image(img)
                 #img = img - np.median(img)
 
                 #ndim==2でlistに格納
@@ -108,6 +111,7 @@ def train_net(net,
     #####
     tmp_train = ids['train']
     val = ids['val']
+    
     #####train画像を1400x1680にmirror padding
     for k in tmp_train:
         k[0] = mirror_padding(k[0], 1400, 1680)
@@ -115,11 +119,13 @@ def train_net(net,
     #####1000x1200val画像を6分割して固定(list化)
     #mirror paddingによって1024x1536に拡大
     for l in val:
-        l[0] = mirror_padding(k[0], 1024, 1536)
-        l[1] = mirror_padding(k[1], 1024, 1536)
+        l[0] = mirror_padding(l[0], 1024, 1536)
+        l[1] = mirror_padding(l[1], 1024, 1536)
 
     #6分割( valの枚数 = 1 を想定 )
-    val_sepa = cutting_img( val, 512 )
+    
+    
+    val_sepa = cutting_img( val[0], 512 )
     len_val = len( val_sepa )
     print( "len of val_sepa is {}".format( len( val_sepa ) ) )
     
@@ -204,7 +210,7 @@ def train_net(net,
                 val_loss += loss.item() 
                 
                 mask_bin = (mask_prob[0] > 0.5).float()
-                val_dice += dice_coeff(mask_bin, mask.float()).item()
+                val_dice += dice_coeff(mask_bin, mask.float(), device).item()
                 
                 #if j == len_val - 1:
                 #    print('{} validations completed'.format(len_val))
@@ -247,11 +253,11 @@ def get_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-e', '--epochs', metavar='E', type=int, default=5,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=1,
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=4,
                         help='Batch size', dest='batchsize')
     parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
                         help='Learning rate', dest='lr')
-    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=32,
+    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
                         help='First num of kernels', dest='first_num_of_kernels')
     parser.add_argument('-om', '--optimizer-method', metavar='OM', type=str, nargs='?', default='Adam',
                         help='Optimizer method', dest='optimizer_method')
@@ -259,6 +265,8 @@ def get_args():
                         help='training cell image', dest='cell')
     parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=128,
                         help='Image size', dest='size')
+    parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
+                        help='gpu_num?', dest='gpu_num')
     
     #parser.add_argument('-f', '--load', dest='load', type=str, default=False,
     #                    help='Load model from a .pth file')
@@ -286,7 +294,7 @@ if __name__ == '__main__':
     # faster convolutions, but more memory
     # cudnn.benchmark = True
     dir_checkpoint = './checkpoint'
-    dir_result = f'./result_{args.cell}_sz{args.size}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}'
+    dir_result = f'./result_{args.cell}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}'
     os.makedirs(dir_checkpoint, exist_ok=True)
     os.makedirs(dir_result, exist_ok=True)
     try:
@@ -297,7 +305,7 @@ if __name__ == '__main__':
                   first_num_of_kernels=args.first_num_of_kernels,
                   device=device,
                   dir_checkpoint='checkpoint/',
-                  dir_result='result/',
+                  dir_result=f'{dir_result}/',
                   optimizer_method=args.optimizer_method,
                   cell=args.cell,
                   size=args.size)
