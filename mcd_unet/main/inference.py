@@ -19,7 +19,7 @@ def eval(test_list):
     #.tocuda()
         img = torch.from_numpy(image[0]).unsqueeze(0).cpu()
         img = img.float()
-        print(img.dtype)
+        
         with torch.no_grad():
             mask = model(img)
             mask_prob = torch.sigmoid(mask).squeeze(0)
@@ -101,15 +101,14 @@ def get_args():
                         help='First num of kernels', dest='first_num_of_kernels')
     parser.add_argument('-m', '--model', metavar='M', type=str, nargs='?',
                         help='the path of model', dest='Path_of_model')
+    parser.add_argument('-md', '--modeldir', metavar='MD', type=str, nargs='?', default=None,
+                        help='the path of the dir of model_list', dest='model_dir')
+
 
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
-
-    model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-    model.load_state_dict(torch.load(args.Path_of_model, map_location='cpu'))
-    model.eval()
 
     tests = []
     name = "phase"
@@ -159,21 +158,42 @@ if __name__ == '__main__':
                 ph_lab[1] = img.reshape([1, img.shape[-2], img.shape[-1]])
         NIHtests.append(ph_lab)
 
-    dir_result = './eval512_result'
-    os.makedirs(dir_result, exist_ok=True)
-    path_w = f'{dir_result}/evaluation.txt'
+    
 
-    Dice, IoU, result_HeLa, merge_HeLa = eval(tests)
-    NIHDice, NIHIoU, result_NIH, merge_NIH = eval(NIHtests)
-    with open(path_w, mode='w') as f:
-        f.write('HeLaDice : {: .04f}\n'.format(Dice))
-        f.write('HeLaIoU : {: .04f}\n'.format(IoU))
-        f.write('NIHDice : {: .04f}\n'.format(NIHDice))
-        f.write('NIHIoU : {: .04f}\n'.format(NIHIoU))
+    #CP_HeLa_Adam_epoch500_fk64_b1.pth
 
-    io.imsave(f'{dir_result}/HeLa_result.tif', result_HeLa)
-    io.imsave(f'{dir_result}/HeLa_merge.tif', merge_HeLa)
-    io.imsave(f'{dir_result}/NIH_result.tif', result_NIH)
-    io.imsave(f'{dir_result}/NIH_merge.tif', merge_NIH)
+    if args.model_dir != None:
+        for i in range(500):
+            path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk64_b1.pth'
+            model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            model.load_state_dict(torch.load(path_model, map_location='cpu'))
+            model.eval()
+            Dice, IoU, result_HeLa, merge_HeLa = eval(tests)
+            NIHDice, NIHIoU, result_NIH, merge_NIH = eval(NIHtests)
+            print(f"epoch: {i+1}")
+            print(f"HeLa IoU: {IoU}")
+            print(f"NIH IoU: {NIHIoU}\n")
+
+    else:
+        model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        model.load_state_dict(torch.load(args.Path_of_model, map_location='cpu'))
+        model.eval()
+
+        dir_result = './eval512_result'
+        os.makedirs(dir_result, exist_ok=True)
+        path_w = f'{dir_result}/evaluation.txt'
+        
+        Dice, IoU, result_HeLa, merge_HeLa = eval(tests)
+        NIHDice, NIHIoU, result_NIH, merge_NIH = eval(NIHtests)
+        with open(path_w, mode='w') as f:
+            f.write('HeLaDice : {: .04f}\n'.format(Dice))
+            f.write('HeLaIoU : {: .04f}\n'.format(IoU))
+            f.write('NIHDice : {: .04f}\n'.format(NIHDice))
+            f.write('NIHIoU : {: .04f}\n'.format(NIHIoU))
+
+        io.imsave(f'{dir_result}/HeLa_result.tif', result_HeLa)
+        io.imsave(f'{dir_result}/HeLa_merge.tif', merge_HeLa)
+        io.imsave(f'{dir_result}/NIH_result.tif', result_NIH)
+        io.imsave(f'{dir_result}/NIH_merge.tif', merge_NIH)
     
     
