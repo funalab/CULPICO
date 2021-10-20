@@ -325,3 +325,14 @@ def cutting_img( img_list, size ):
             
     return cut_list
 
+
+def adjust_img( img, height, width ):
+    img_h = img.shape[0]
+    img_w = img.shape[-1]
+    
+    diff_h = int( ( img_h - height ) / 2 )
+    diff_w = int( ( img_w - width ) / 2 )
+
+    new_img = img[ diff_h : diff_h + height, diff_w : diff_w + width ]
+
+    return new_img
