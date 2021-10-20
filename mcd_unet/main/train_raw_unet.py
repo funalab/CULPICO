@@ -143,8 +143,8 @@ def train_net(net,
             img = np.array([i[0] for i in b]).astype(np.float32)
             mask = np.array([i[1] for i in b]).astype(np.float32)
 
-            img = torch.from_numpy(img).cuda()
-            mask = torch.from_numpy(mask).cuda()
+            img = torch.from_numpy(img).cuda( device )
+            mask = torch.from_numpy(mask).cuda( device )
             mask_flat = mask.view(-1)
 
             mask_pred = net(img)
@@ -177,8 +177,8 @@ def train_net(net,
                 img = img.reshape([1, img.shape[-2], img.shape[-1]])
                 mask = np.array(b[1]).astype(np.float32)
                 mask = mask.reshape([1, mask.shape[-2], mask.shape[-1]])
-                img =  torch.from_numpy(img).unsqueeze(0).cuda()
-                mask = torch.from_numpy(mask).unsqueeze(0).cuda()
+                img =  torch.from_numpy(img).unsqueeze(0).cuda( device )
+                mask = torch.from_numpy(mask).unsqueeze(0).cuda( device )
                 ##############calculate validation loss#############################
                 """
                 valimg = np.array(b[0]).astype(np.float32)
@@ -225,11 +225,11 @@ def train_net(net,
             #bestepoch = epoch + 1
             print('best model is updated !')
 
-    bestmodel = net.state_dict()
-    bestepoch = epoch + 1
-    torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
-    print('Checkpoint {}_epoch{}_fk{}_b{} saved !'.format(optimizer_method, bestepoch, first_num_of_kernels, batch_size))
-    print('Validation IoU Loss: {}'.format(valiou_list[bestepoch - 1]))
+        bestmodel = net.state_dict()
+        bestepoch = epoch + 1
+        torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
+        print('Checkpoint {}_epoch{}_fk{}_b{} saved !'.format(optimizer_method, bestepoch, first_num_of_kernels, batch_size))
+        print('Validation IoU Loss: {}'.format(valiou_list[bestepoch - 1]))
     
     # plot learning curve
     loss_graph = plt.figure()
@@ -308,7 +308,7 @@ if __name__ == '__main__':
                   lr=args.lr,
                   first_num_of_kernels=args.first_num_of_kernels,
                   device=device,
-                  dir_checkpoint='{dir_checkpoint}/',
+                  dir_checkpoint=f'{dir_checkpoint}/',
                   dir_result=f'{dir_result}/',
                   optimizer_method=args.optimizer_method,
                   cell=args.cell,
