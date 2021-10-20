@@ -229,8 +229,8 @@ def train_net(net,
     
     # plot learning curve
     loss_graph = plt.figure()
-    plt.plot(range(epochs), trloss_list, 'r-', label='train_loss')
-    plt.plot(range(epochs), valloss_list, 'b-', label='val_loss')
+    plt.plot(range(epochs), trloss_list, 'b-', label='train_loss')
+    plt.plot(range(epochs), valloss_list, 'r-', label='val_loss')
     plt.legend()
     plt.xlabel('epoch')
     plt.ylabel('loss')
