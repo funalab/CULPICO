@@ -221,9 +221,12 @@ def train_net(net,
         valiou_list.append(val_iou / len_val)
         if (val_loss / len_val) < min_val_loss:
             min_val_loss = (val_loss / len_val)
-            bestmodel = net.state_dict()
-            bestepoch = epoch + 1
+            #bestmodel = net.state_dict()
+            #bestepoch = epoch + 1
             print('best model is updated !')
+
+    bestmodel = net.state_dict()
+    bestepoch = epoch + 1
     torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
     print('Checkpoint {}_epoch{}_fk{}_b{} saved !'.format(optimizer_method, bestepoch, first_num_of_kernels, batch_size))
     print('Validation IoU Loss: {}'.format(valiou_list[bestepoch - 1]))
@@ -294,7 +297,7 @@ if __name__ == '__main__':
     net.to(device=device)
     # faster convolutions, but more memory
     # cudnn.benchmark = True
-    dir_checkpoint = './checkpoint'
+    dir_checkpoint = f'./checkpoint_{args.cell}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}'
     dir_result = f'./result_{args.cell}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}'
     os.makedirs(dir_checkpoint, exist_ok=True)
     os.makedirs(dir_result, exist_ok=True)
@@ -305,7 +308,7 @@ if __name__ == '__main__':
                   lr=args.lr,
                   first_num_of_kernels=args.first_num_of_kernels,
                   device=device,
-                  dir_checkpoint='checkpoint/',
+                  dir_checkpoint='{dir_checkpoint}/',
                   dir_result=f'{dir_result}/',
                   optimizer_method=args.optimizer_method,
                   cell=args.cell,
