@@ -105,7 +105,7 @@ def train_net(net,
     len_val = len(ids['val'])
     trloss_list = []
     valloss_list = []
-    valdice_list = []
+    valiou_list = []
     min_val_loss = 10000.0;
 
     #####
@@ -169,7 +169,7 @@ def train_net(net,
         
         
         #---- Val section
-        val_dice = 0
+        val_iou = 0
         val_loss = 0
         with torch.no_grad():
             for j, b in enumerate( val_sepa ):
@@ -210,14 +210,15 @@ def train_net(net,
                 val_loss += loss.item() 
                 
                 mask_bin = (mask_prob[0] > 0.5).float()
-                val_dice += dice_coeff(mask_bin, mask.float(), device).item()
+                val_iou = iou_loss(mask_bin, mask.float(), device).item()
+                #val_dice += dice_coeff(mask_bin, mask.float(), device).item()
                 
                 #if j == len_val - 1:
                 #    print('{} validations completed'.format(len_val))
 
         
         valloss_list.append(val_loss / len_val)
-        valdice_list.append(val_dice / len_val)
+        valiou_list.append(val_iou / len_val)
         if (val_loss / len_val) < min_val_loss:
             min_val_loss = (val_loss / len_val)
             bestmodel = net.state_dict()
@@ -225,7 +226,7 @@ def train_net(net,
             print('best model is updated !')
     torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
     print('Checkpoint {}_epoch{}_fk{}_b{} saved !'.format(optimizer_method, bestepoch, first_num_of_kernels, batch_size))
-    print('Validation Dice Coeff: {}'.format(valdice_list[bestepoch - 1]))
+    print('Validation IoU Loss: {}'.format(valiou_list[bestepoch - 1]))
     
     # plot learning curve
     loss_graph = plt.figure()
@@ -237,13 +238,13 @@ def train_net(net,
     plt.grid()
     loss_graph.savefig('{}loss.pdf'.format(dir_result))
 
-    dice_graph = plt.figure()
-    plt.plot(range(epochs), valdice_list, 'g-', label='val_dice')
+    iou_graph = plt.figure()
+    plt.plot(range(epochs), valiou_list, 'g-', label='val_iou')
     plt.legend()
     plt.xlabel('epoch')
-    plt.ylabel('dice')
+    plt.ylabel('iou')
     plt.grid()
-    dice_graph.savefig('{}dice.pdf'.format(dir_result))
+    iou_graph.savefig('{}iou.pdf'.format(dir_result))
     
 ####################################
 
