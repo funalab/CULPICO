@@ -158,21 +158,24 @@ if __name__ == '__main__':
                 ph_lab[1] = img.reshape([1, img.shape[-2], img.shape[-1]])
         NIHtests.append(ph_lab)
 
-    
+    print(len(NIHtests))
 
     #CP_HeLa_Adam_epoch500_fk64_b1.pth
 
     if args.model_dir != None:
-        for i in range(500):
+        path_w = f'./eval_by_epoch.txt'
+        for i in range(274,500):
             path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk64_b1.pth'
             model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
             model.load_state_dict(torch.load(path_model, map_location='cpu'))
             model.eval()
-            Dice, IoU, result_HeLa, merge_HeLa = eval(tests)
+            
             NIHDice, NIHIoU, result_NIH, merge_NIH = eval(NIHtests)
-            print(f"epoch: {i+1}")
-            print(f"HeLa IoU: {IoU}")
-            print(f"NIH IoU: {NIHIoU}\n")
+            Dice, IoU, result_HeLa, merge_HeLa = eval(tests)
+            with open(path_w, mode='w') as f:
+                f.write('epoch : {: .04f}\n'.format(i+1))
+                f.write('HeLaIoU : {: .04f}\n'.format(IoU))
+                f.write('NIHIoU : {: .04f}\n\n'.format(NIHIoU))
 
     else:
         model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
