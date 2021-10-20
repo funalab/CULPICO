@@ -18,7 +18,8 @@ def eval(test_list):
     #print(file[1].shape)
     #.tocuda()
         img = torch.from_numpy(image[0]).unsqueeze(0).cpu()
-    
+        img = img.float()
+        print(img.dtype)
         with torch.no_grad():
             mask = model(img)
             mask_prob = torch.sigmoid(mask).squeeze(0)
@@ -44,11 +45,11 @@ def eval(test_list):
     inf = np.uint8(inf)
 
     
-    
+    inf = adjust_img( inf, 500, 500 )
     #(640, 640)->(500,500)
-    inf = inf[70:570, 70:570]
+    #inf = inf[70:570, 70:570]
     label = test_list[0][1][0]
-    label = label[70:570, 70:570]
+    #label = label[70:570, 70:570]
     #Type = np.ndarray
     TP = 0
     FP = 0
@@ -125,10 +126,12 @@ if __name__ == '__main__':
             if name in path_img:
                 #original unet scaling (subtracting by median)
                 img = scaling_image(img)
+                img = mirror_padding( img, 512, 512 )
                 #img = img - np.median(img)
                 ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
             else:
                 img = img / 255
+                #img = mirror_padding( img, 512, 512 )
                 ph_lab[1] = img.reshape([1, img.shape[-2], img.shape[-1]])
         tests.append(ph_lab)
 
@@ -147,10 +150,12 @@ if __name__ == '__main__':
             if name in path_img:
                 #original unet scaling (subtracting by median)
                 img = scaling_image(img)
+                img = mirror_padding( img, 512, 512 )
                 #img = img - np.median(img)
                 ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
             else:
                 img = img / 255
+                #img = mirror_padding( img, 512, 512 )
                 ph_lab[1] = img.reshape([1, img.shape[-2], img.shape[-1]])
         NIHtests.append(ph_lab)
 
