@@ -103,6 +103,15 @@ def get_args():
                         help='the path of model', dest='Path_of_model')
     parser.add_argument('-md', '--modeldir', metavar='MD', type=str, nargs='?', default=None,
                         help='the path of the dir of model_list', dest='model_dir')
+    parser.add_argument('-scaling', '--scaling_type', metavar='ST', type=str, nargs='?', default=None,
+                        help='scaling method?', dest='scaling_type')
+    parser.add_argument('-mk', '--marker', metavar='FM', type=str, nargs='?', default=None,
+                        help='?', dest='marker')
+    parser.add_argument('-se', '--start-epoch', metavar='SE', type=int, nargs='?', default=275,
+                        help='?', dest='start_epoch')
+    parser.add_argument('-cpn', '--cp-name', metavar='CPN', type=str, nargs='?', default=None,
+                        help='check point name before "_epoch" ', dest='cp_name')
+
 
 
     return parser.parse_args()
@@ -125,6 +134,8 @@ if __name__ == '__main__':
             if name in path_img:
                 #original unet scaling (subtracting by median)
                 img = scaling_image(img)
+                if args.scaling_type == 'unet':
+                    img = img - np.median( img )
                 img = mirror_padding( img, 512, 512 )
                 #img = img - np.median(img)
                 ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
@@ -149,6 +160,8 @@ if __name__ == '__main__':
             if name in path_img:
                 #original unet scaling (subtracting by median)
                 img = scaling_image(img)
+                if args.scaling_type == 'unet':
+                    img = img - np.median( img )
                 img = mirror_padding( img, 512, 512 )
                 #img = img - np.median(img)
                 ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
@@ -163,16 +176,19 @@ if __name__ == '__main__':
     #CP_HeLa_Adam_epoch500_fk64_b1.pth
 
     if args.model_dir != None:
-        path_w = f'./eval_by_epoch.txt'
-        for i in range(274,500):
-            path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk64_b1.pth'
+        path_w = f'./eval_by_epoch_{args.marker}.txt'
+        for i in range(args.start_epoch, 700):
+            path_model = f'{args.model_dir}/{args.cp_name}_epoch{i+1}_fk64_b2.pth'
+            #CP_HeLa_Adam_epoch300_fk64_b2.pth
+            #path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk64_b2.pth'
+            #CP_HeLa_SGD_epoch458_fk64_b2.pth
             model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
             model.load_state_dict(torch.load(path_model, map_location='cpu'))
             model.eval()
             
             NIHDice, NIHIoU, result_NIH, merge_NIH = eval(NIHtests)
             Dice, IoU, result_HeLa, merge_HeLa = eval(tests)
-            with open(path_w, mode='w') as f:
+            with open(path_w, mode='a') as f:
                 f.write('epoch : {: .04f}\n'.format(i+1))
                 f.write('HeLaIoU : {: .04f}\n'.format(IoU))
                 f.write('NIHIoU : {: .04f}\n\n'.format(NIHIoU))
