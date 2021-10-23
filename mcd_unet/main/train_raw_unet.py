@@ -104,7 +104,7 @@ def train_net(net,
     n = 1
     ids = {'train': trains[:-n], 'val': trains[-n:]}
     len_train = len(ids['train'])
-    len_val = len(ids['val'])
+    #len_val = len(ids['val'])
     trloss_list = []
     valloss_list = []
     valiou_list = []

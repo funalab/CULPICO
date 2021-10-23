@@ -243,7 +243,7 @@ if __name__ == '__main__':
     if args.model_dir != None:
         path_w = f'./eval_by_epoch_{args.marker}.txt'
         for i in range(args.start_epoch, 1500):
-            path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk{args.first_num_of_kernels}_b2.pth'
+            path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk{args.first_num_of_kernels}_b4.pth'
             #CP_HeLa_Adam_epoch300_fk64_b2.pth
             #CP_HeLa_Adam_epoch98_fk32_b1.pth
             #path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk64_b2.pth'
@@ -254,8 +254,8 @@ if __name__ == '__main__':
 
             HeLa_Dice, HeLa_IoU = eval(tests, split_flag=args.split_flag)
             NIH_Dice, NIH_IoU = eval(NIHtests, split_flag=args.split_flag)
-            print(HeLa_IoU)
-            print(NIH_IoU)
+            #print(HeLa_IoU)
+            #print(NIH_IoU)
             with open(path_w, mode='a') as f:
                 f.write('epoch : {}\n'.format(i+1))
                 f.write('HeLaIoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
