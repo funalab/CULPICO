@@ -11,7 +11,13 @@ import glob
 from skimage import io
 import os
 
-def eval(test_list):
+def eval(test_list, split_flag=False):
+    IoU_list = []
+    Dice_list = []
+    if split_flag:
+        adjust_size = 250
+    else:
+        adjust_size = 500
     #現状1枚inference用コード->複数枚mean,std算出に対応させる必要
     for i, image in enumerate(test_list):
     #print(i)
@@ -35,45 +41,14 @@ def eval(test_list):
             #mask_prob_np
             inf = mask_prob.squeeze().cpu().numpy()
             
-
-    for i in range(inf.shape[0]):
-        for j in range(inf.shape[1]):
-            if inf[i][j]>0.5:
-                inf[i][j] = 1
-            else:
-                inf[i][j] = 0
-    inf = np.uint8(inf)
+    
+        inf = adjust_img( inf, adjust_size, adjust_size )
+        tmp_Dice, tmp_IoU = calc_IoU(inf, image[1][0])
+        Dice_list.append(tmp_Dice)
+        IoU_list.append(tmp_IoU)
 
     
-    inf = adjust_img( inf, 500, 500 )
-    #(640, 640)->(500,500)
-    #inf = inf[70:570, 70:570]
-    label = test_list[0][1][0]
-    #label = label[70:570, 70:570]
-    #Type = np.ndarray
-    TP = 0
-    FP = 0
-    FN = 0
-    TN = 0
-    #temporary
-    judge = inf - np.uint8(label)
-    for i in range(inf.shape[0]):
-        for j in range(inf.shape[1]):
-            if judge[i][j] < 0:
-                FN += 1
-            elif judge[i][j] > 0:
-                FP += 1
-            else:
-                if inf[i][j] > 0:
-                    TP += 1
-                else:
-                    TN += 1
-
-    Dice = 2 * TP / (2 * TP + FP + FN)
-    IoU = TP / (TP + FP + FN)
-
-    result, merge = merge_images(label, inf)
-    return Dice, IoU, result, merge
+    return Dice_list, IoU_list
 
 def merge_images(img_gt: np.ndarray, img_segmented: np.ndarray):
     #img_segmented = make_size_equal(img_segmented, img_gt)
@@ -111,6 +86,8 @@ def get_args():
                         help='?', dest='start_epoch')
     parser.add_argument('-cpn', '--cp-name', metavar='CPN', type=str, nargs='?', default=None,
                         help='check point name before "_epoch" ', dest='cp_name')
+    parser.add_argument('-sp', '--split', metavar='SP', type=bool, nargs='?', default=False,
+                        help='split mode T or F?" ', dest='split_flag')
 
 
 
@@ -122,7 +99,12 @@ if __name__ == '__main__':
     tests = []
     name = "phase"
     #necessary to be absolute path
-    test_files = glob.glob("../../dataset_smiyaki/test_raw/HeLa/*")
+    if args.split_flag:
+        test_files = glob.glob("../../dataset_smiyaki/test_split/HeLa/*")
+        mp_size = 256
+    else:
+        test_files = glob.glob("../../dataset_smiyaki/test_raw/HeLa/*")
+        mp_size = 512
     for testfile in test_files:
         ph_lab = [0] * 2
         #*set*/
@@ -136,7 +118,7 @@ if __name__ == '__main__':
                 img = scaling_image(img)
                 if args.scaling_type == 'unet':
                     img = img - np.median( img )
-                img = mirror_padding( img, 512, 512 )
+                img = mirror_padding( img, mp_size, mp_size )
                 #img = img - np.median(img)
                 ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
             else:
@@ -148,7 +130,13 @@ if __name__ == '__main__':
     NIHtests = []
     name = "phase"
     #necessary to be absolute path
-    test_files = glob.glob("../../dataset_smiyaki/test_raw/3T3/*")
+    if args.split_flag:
+        test_files = glob.glob("../../dataset_smiyaki/test_split/3T3/*")
+        mp_size = 256
+    else:
+        test_files = glob.glob("../../dataset_smiyaki/test_raw/3T3/*")
+        mp_size = 512
+        
     for testfile in test_files:
         ph_lab = [0] * 2
         #*set*/
@@ -162,7 +150,7 @@ if __name__ == '__main__':
                 img = scaling_image(img)
                 if args.scaling_type == 'unet':
                     img = img - np.median( img )
-                img = mirror_padding( img, 512, 512 )
+                img = mirror_padding( img, mp_size, mp_size )
                 #img = img - np.median(img)
                 ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
             else:
@@ -185,15 +173,18 @@ if __name__ == '__main__':
             model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
             model.load_state_dict(torch.load(path_model, map_location='cpu'))
             model.eval()
+
+            HeLa_Dice, HeLa_IoU = eval(tests, split_flag=args.split_flag)
+            NIH_Dice, NIH_IoU = eval(NIHtests, split_flag=args.split_flag)
             
-            NIHDice, NIHIoU, result_NIH, merge_NIH = eval(NIHtests)
-            Dice, IoU, result_HeLa, merge_HeLa = eval(tests)
             with open(path_w, mode='a') as f:
-                f.write('epoch : {: .04f}\n'.format(i+1))
-                f.write('HeLaIoU : {: .04f}\n'.format(IoU))
-                f.write('NIHIoU : {: .04f}\n\n'.format(NIHIoU))
+                f.write('epoch : {}\n'.format(i+1))
+                f.write('HeLaIoU : {: .04f}\n'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
+                f.write('NIHIoU : {: .04f}\n\n'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU))))
+                
 
     else:
+        """
         model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
         model.load_state_dict(torch.load(args.Path_of_model, map_location='cpu'))
         model.eval()
@@ -214,5 +205,5 @@ if __name__ == '__main__':
         io.imsave(f'{dir_result}/HeLa_merge.tif', merge_HeLa)
         io.imsave(f'{dir_result}/NIH_result.tif', result_NIH)
         io.imsave(f'{dir_result}/NIH_merge.tif', merge_NIH)
-    
+        """
     
