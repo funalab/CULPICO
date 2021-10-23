@@ -336,3 +336,60 @@ def adjust_img( img, height, width ):
     new_img = img[ diff_h : diff_h + height, diff_w : diff_w + width ]
 
     return new_img
+
+def merge_images(img_gt: np.ndarray, img_segmented: np.ndarray):
+    #img_segmented = make_size_equal(img_segmented, img_gt)
+
+    img_segmented: np.ndarray = img_segmented > 0
+    img_gt: np.ndarray = img_gt > 0
+
+    result_img = np.zeros((img_gt.shape[0], img_gt.shape[1], 3))
+
+    fp_img = np.logical_and(img_segmented, ~img_gt) * 255
+    tp_img = np.logical_and(img_segmented, img_gt) * 255
+    fn_img = np.logical_and(~img_segmented, img_gt) * 255
+
+    result_img[:, :, 0] += fp_img  # R
+    result_img[:, :, 1] += tp_img  # G
+    result_img[:, :, 1] += fn_img  # G
+    result_img[:, :, 2] += fn_img  # B
+
+    return result_img.astype(np.uint8), img_segmented.astype(np.uint8) * 255
+
+
+def calc_IoU(inf, mask):
+    for i in range(inf.shape[0]):
+        for j in range(inf.shape[1]):
+            if inf[i][j]>0.5:
+                inf[i][j] = 1
+            else:
+                inf[i][j] = 0
+    inf = np.uint8(inf)
+
+    #inf.shape = gt.shape = (128, 128)
+    #Type = np.ndarray
+    TP = 0
+    FP = 0
+    FN = 0
+    TN = 0
+    #temporary
+    judge = inf - np.uint8(mask)
+    #test_list[0][1][0]
+    for i in range(inf.shape[0]):
+        for j in range(inf.shape[1]):
+            if judge[i][j] < 0:
+                FN += 1
+            elif judge[i][j] > 0:
+                FP += 1
+            else:
+                if inf[i][j] > 0:
+                    TP += 1
+                else:
+                    TN += 1
+
+    Dice = 2 * TP / (2 * TP + FP + FN)
+    IoU = TP / (TP + FP + FN)
+    
+    return Dice, IoU
+
+
