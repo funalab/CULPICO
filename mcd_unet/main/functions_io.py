@@ -309,9 +309,14 @@ def random_cropping( img, lab, size ):
 def cutting_img( img_list, size ):
     height = img_list[0].shape[0]
     width = img_list[0].shape[1]
-
+    #print(f"height={height}")
+    #print(f"width={width}")
     n_h = int( height / size )
     n_w = int( width / size )
+    #print(f"n_h={n_h}")
+    #print(f"n_w={n_w}")
+    #print(f"img_list[0].shape={img_list[0].shape}")
+    #print(f"img_list[1].shape={img_list[1].shape}")
 
     cut_list = []
     cut_imgs = [0] * 2

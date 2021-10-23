@@ -10,6 +10,8 @@ import numpy as np
 import glob
 from skimage import io
 import os
+import statistics
+
 
 def eval(test_list, split_flag=False):
     IoU_list = []
@@ -99,12 +101,15 @@ if __name__ == '__main__':
     tests = []
     name = "phase"
     #necessary to be absolute path
+    
     if args.split_flag:
         test_files = glob.glob("../../dataset_smiyaki/test_split/HeLa/*")
         mp_size = 256
     else:
         test_files = glob.glob("../../dataset_smiyaki/test_raw/HeLa/*")
         mp_size = 512
+    
+    #test_files = glob.glob("../../dataset_smiyaki/test_raw/HeLa/*")
     for testfile in test_files:
         ph_lab = [0] * 2
         #*set*/
@@ -114,29 +119,69 @@ if __name__ == '__main__':
             #print("hoge")
             img = io.imread(path_img)
             if name in path_img:
+                """
+                
+                """
                 #original unet scaling (subtracting by median)
                 img = scaling_image(img)
                 if args.scaling_type == 'unet':
                     img = img - np.median( img )
+
                 img = mirror_padding( img, mp_size, mp_size )
-                #img = img - np.median(img)
                 ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
+                """
+                if args.split_flag:
+                    #未mirror_padding
+                    #未reshape( (512, 512) -> (1, 512, 512) )
+                    ph_lab[0] = img
+                else:
+                    mp_size = 512
+                    img = mirror_padding( img, mp_size, mp_size )
+                    ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
+                """
+                #img = img - np.median(img)
+                
             else:
                 img = img / 255
-                #img = mirror_padding( img, 512, 512 )
                 ph_lab[1] = img.reshape([1, img.shape[-2], img.shape[-1]])
+                """
+                if args.split_flag:
+                    #未reshape
+                    ph_lab[1] = img
+                else:
+                    #img = mirror_padding( img, 512, 512 )
+                
+                    ph_lab[1] = img.reshape([1, img.shape[-2], img.shape[-1]])
+                """
         tests.append(ph_lab)
-
+    """ 
+    if args.split_flag:
+    #data整形
+        mp_size = 256
+        #等分割
+        tests = cutting_img( tests[0], 250 )
+        for split_imgs in tests:
+            #phase(split_imgs[0]):mirror_padding & reshape
+            tmp_phase = split_imgs[0]
+            tmp_phase_mp = mirror_padding( tmp_phase, mp_size, mp_size )
+            split_imgs[0] = tmp_phase_mp.reshape( [1, tmp_phase_mp.shape[-2], tmp_phase_mp.shape[-1]] ) 
+            #label(split_imgs[1]):reshape
+            tmp_lab = split_imgs[1]
+            split_imgs[1] = tmp_lab.reshape( [1, tmp_lab.shape[-2], tmp_lab.shape[-1]] ) 
+    """
+    
     NIHtests = []
     name = "phase"
     #necessary to be absolute path
+    
     if args.split_flag:
         test_files = glob.glob("../../dataset_smiyaki/test_split/3T3/*")
         mp_size = 256
     else:
         test_files = glob.glob("../../dataset_smiyaki/test_raw/3T3/*")
         mp_size = 512
-        
+    
+    #test_files = glob.glob("../../dataset_smiyaki/test_raw/3T3/*")
     for testfile in test_files:
         ph_lab = [0] * 2
         #*set*/
@@ -150,24 +195,57 @@ if __name__ == '__main__':
                 img = scaling_image(img)
                 if args.scaling_type == 'unet':
                     img = img - np.median( img )
+
                 img = mirror_padding( img, mp_size, mp_size )
-                #img = img - np.median(img)
                 ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
+                """
+                if args.split_flag:
+                    #未mirror_padding
+                    #未reshape( (512, 512) -> (1, 512, 512) )
+                    ph_lab[0] = img
+                else:
+                    mp_size = 512
+                    img = mirror_padding( img, mp_size, mp_size )
+                    ph_lab[0] = img.reshape([1, img.shape[-2], img.shape[-1]])
+                """
+                
             else:
                 img = img / 255
                 #img = mirror_padding( img, 512, 512 )
                 ph_lab[1] = img.reshape([1, img.shape[-2], img.shape[-1]])
+                """
+                if args.split_flag:
+                    #未reshape
+                    ph_lab[1] = img
+                else:
+                    #img = mirror_padding( img, 512, 512 )
+                    ph_lab[1] = img.reshape([1, img.shape[-2], img.shape[-1]])                
+                """
         NIHtests.append(ph_lab)
-
-    print(len(NIHtests))
+    """
+    if args.split_flag:
+        
+        mp_size = 256
+        #等分割
+        NIHtests = cutting_img( NIHtests[0], 250 )
+        for split_imgs in NIHtests:
+            #phase(split_imgs[0]):mirror_padding & reshape
+            tmp_phase = split_imgs[0]
+            tmp_phase = mirror_padding( tmp_phase, mp_size, mp_size )
+            split_imgs[0] = tmp_phase.reshape( [1, tmp_phase.shape[-2], tmp_phase.shape[-1]] ) 
+            #label(split_imgs[1]):reshape
+            tmp_lab = split_imgs[1]
+            split_imgs[1] = tmp_lab.reshape( [1, tmp_lab.shape[-2], tmp_lab.shape[-1]] ) 
+    """
 
     #CP_HeLa_Adam_epoch500_fk64_b1.pth
 
     if args.model_dir != None:
         path_w = f'./eval_by_epoch_{args.marker}.txt'
-        for i in range(args.start_epoch, 700):
-            path_model = f'{args.model_dir}/{args.cp_name}_epoch{i+1}_fk64_b2.pth'
+        for i in range(args.start_epoch, 1500):
+            path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk{args.first_num_of_kernels}_b2.pth'
             #CP_HeLa_Adam_epoch300_fk64_b2.pth
+            #CP_HeLa_Adam_epoch98_fk32_b1.pth
             #path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk64_b2.pth'
             #CP_HeLa_SGD_epoch458_fk64_b2.pth
             model = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
@@ -176,11 +254,12 @@ if __name__ == '__main__':
 
             HeLa_Dice, HeLa_IoU = eval(tests, split_flag=args.split_flag)
             NIH_Dice, NIH_IoU = eval(NIHtests, split_flag=args.split_flag)
-            
+            print(HeLa_IoU)
+            print(NIH_IoU)
             with open(path_w, mode='a') as f:
                 f.write('epoch : {}\n'.format(i+1))
-                f.write('HeLaIoU : {: .04f}\n'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
-                f.write('NIHIoU : {: .04f}\n\n'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU))))
+                f.write('HeLaIoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
+                f.write('NIHIoU : {: .04f} +-{: .04f}\n\n'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU)))
                 
 
     else:
