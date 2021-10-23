@@ -53,7 +53,7 @@ def train_net(net,
             weight_decay=0,
             amsgrad=False
         )
-
+        
     criterion = nn.BCELoss()
     
     absolute = os.path.abspath(f'../../dataset_smiyaki/training_data/{cell}_raw')
@@ -269,12 +269,12 @@ def get_args():
                         help='Optimizer method', dest='optimizer_method')
     parser.add_argument('-cell', '--training-cell', metavar='TC', type=str, nargs='?', default='HeLa',
                         help='training cell image', dest='cell')
-    parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=256,
+    parser.add_argument('-sz', '--size', metavar='IS', type=int, nargs='?', default=256,
                         help='Image size', dest='size')
     parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
                         help='gpu_num?', dest='gpu_num')
-    parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default=None,
-                        help='gpu_num?', dest='scaling_type')
+    parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='unet',
+                        help='scaling method??', dest='scaling_type')
     
     #parser.add_argument('-f', '--load', dest='load', type=str, default=False,
     #                    help='Load model from a .pth file')
@@ -301,8 +301,8 @@ if __name__ == '__main__':
     net.to(device=device)
     # faster convolutions, but more memory
     # cudnn.benchmark = True
-    dir_checkpoint = f'./checkpoint_{args.cell}_{args.optimizer_method}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}_{args.scaling_type}'
-    dir_result = f'./result_{args.cell}_{args.optimizer_method}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}_{args.scaling_type}'
+    dir_checkpoint = f'./checkpoint_{args.cell}_{args.optimizer_method}_size{args.size}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}_{args.scaling_type}'
+    dir_result = f'./result_{args.cell}_{args.optimizer_method}_size{args.size}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}_{args.scaling_type}'
     os.makedirs(dir_checkpoint, exist_ok=True)
     os.makedirs(dir_result, exist_ok=True)
     try:

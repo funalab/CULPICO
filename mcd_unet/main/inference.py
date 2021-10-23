@@ -103,7 +103,7 @@ def get_args():
                         help='the path of model', dest='Path_of_model')
     parser.add_argument('-md', '--modeldir', metavar='MD', type=str, nargs='?', default=None,
                         help='the path of the dir of model_list', dest='model_dir')
-    parser.add_argument('-scaling', '--scaling_type', metavar='ST', type=str, nargs='?', default=None,
+    parser.add_argument('-scaling', '--scaling_type', metavar='ST', type=str, nargs='?', default='unet',
                         help='scaling method?', dest='scaling_type')
     parser.add_argument('-mk', '--marker', metavar='FM', type=str, nargs='?', default=None,
                         help='?', dest='marker')
