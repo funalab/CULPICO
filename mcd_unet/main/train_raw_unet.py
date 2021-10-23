@@ -127,7 +127,7 @@ def train_net(net,
     #6分割( valの枚数 = 1 を想定 )
     
     
-    val_sepa = cutting_img( val[0], 512 )
+    val_sepa = cutting_img( val[0], size )
     len_val = len( val_sepa )
     print( "len of val_sepa is {}".format( len( val_sepa ) ) )
     
@@ -136,7 +136,7 @@ def train_net(net,
         train = []
         #train画像(phase, label)からランダムクロップしてlistにまとめる
         for train_img_list in tmp_train:
-            train.append( random_cropping( train_img_list[0], train_img_list[1], 512 ) )
+            train.append( random_cropping( train_img_list[0], train_img_list[1], size ) )
         
         #---- Train section
         epoch_loss = 0
@@ -259,7 +259,7 @@ def get_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-e', '--epochs', metavar='E', type=int, default=5,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=4,
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=1,
                         help='Batch size', dest='batchsize')
     parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
                         help='Learning rate', dest='lr')
@@ -269,7 +269,7 @@ def get_args():
                         help='Optimizer method', dest='optimizer_method')
     parser.add_argument('-cell', '--training-cell', metavar='TC', type=str, nargs='?', default='HeLa',
                         help='training cell image', dest='cell')
-    parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=128,
+    parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=256,
                         help='Image size', dest='size')
     parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
                         help='gpu_num?', dest='gpu_num')
