@@ -32,7 +32,8 @@ def train_net(net_g,
               target='3T3',
               size=128,
               num_k=2,
-              co_B=0.1
+              co_B=0.1,
+              large_flag=False
 ):
 
     path_w = f"{dir_result}output.txt"
@@ -47,21 +48,22 @@ def train_net(net_g,
     if optimizer_method == 'SGD':
         opt_g = optim.SGD(
             net_g.parameters(),
-            lr=0.001,
+            lr=0.0001,
             momentum=0.9,
             weight_decay=2e-5
         )
 
         opt_s1 = optim.SGD(
             net_s1.parameters(),
-            lr=0.001,
+            lr=0.0001,
             momentum=0.9,
             weight_decay=2e-5
         )
 
         opt_s2 = optim.SGD(
             net_s2.parameters(),
-            lr=0.001,
+            #lr=0.001,
+            lr=0.0001,
             momentum=0.9,
             weight_decay=2e-5
         )
@@ -69,7 +71,8 @@ def train_net(net_g,
     else:
         opt_g = optim.Adam(
             net_g.parameters(),
-            lr=0.001,
+            #lr=0.001,
+            lr=0.0001,
             #0.002
             betas=(0.9, 0.999),
             eps=1e-08,
@@ -80,7 +83,7 @@ def train_net(net_g,
         )
         opt_s1 = optim.Adam(
             net_s1.parameters(),
-            lr=0.001,
+            lr=0.0001,
             #0.002
             betas=(0.9, 0.999),
             eps=1e-08,
@@ -91,7 +94,7 @@ def train_net(net_g,
         )
         opt_s2 = optim.Adam(
             net_s2.parameters(),
-            lr=0.001,
+            lr=0.0001,
             #0.002
             betas=(0.9, 0.999),
             eps=1e-08,
@@ -496,6 +499,8 @@ def get_args():
                         help='gpu_num?', dest='gpu_num')
     parser.add_argument('-cob', '--co_stepB', type=float, nargs='?', default=0.1,
                         help='the coefficient in B?', dest='co_B')
+    parser.add_argument('-lf', '--large-flag', type=bool, nargs='?', default=False,
+                        help='Is img size large?', dest='large_flag')
     
     return parser.parse_args()
 
@@ -543,7 +548,8 @@ if __name__ == '__main__':
                   target=args.target,
                   size=args.size,
                   num_k=args.num_k,
-                  co_B=args.co_B
+                  co_B=args.co_B,
+                  large_flag=args.large_flag
         )
                   
     except KeyboardInterrupt:

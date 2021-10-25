@@ -247,6 +247,7 @@ if __name__ == '__main__':
         for i in range(args.start_epoch, args.end_epoch):
             #path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i}_fk{args.first_num_of_kernels}_b4.pth'
             path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i}_fk64_b2.pth'
+            #path_model = f'{args.model_dir}/CP_HeLa_SGD_epoch{i}_fk64_b2.pth'
             
             #CP_HeLa_Adam_epoch300_fk64_b2.pth
             #CP_HeLa_Adam_epoch98_fk32_b1.pth
