@@ -84,8 +84,10 @@ def get_args():
                         help='scaling method?', dest='scaling_type')
     parser.add_argument('-mk', '--marker', metavar='FM', type=str, nargs='?', default=None,
                         help='?', dest='marker')
-    parser.add_argument('-se', '--start-epoch', metavar='SE', type=int, nargs='?', default=275,
+    parser.add_argument('-se', '--start-epoch', metavar='SE', type=int, nargs='?', default=1,
                         help='?', dest='start_epoch')
+    parser.add_argument('-ee', '--end-epoch', metavar='EE', type=int, nargs='?', default=1000,
+                        help='?', dest='end_epoch')
     parser.add_argument('-cpn', '--cp-name', metavar='CPN', type=str, nargs='?', default=None,
                         help='check point name before "_epoch" ', dest='cp_name')
     parser.add_argument('-sp', '--split', metavar='SP', type=bool, nargs='?', default=False,
@@ -242,8 +244,10 @@ if __name__ == '__main__':
 
     if args.model_dir != None:
         path_w = f'./eval_by_epoch_{args.marker}.txt'
-        for i in range(args.start_epoch, 1500):
-            path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk{args.first_num_of_kernels}_b4.pth'
+        for i in range(args.start_epoch, args.end_epoch):
+            #path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i}_fk{args.first_num_of_kernels}_b4.pth'
+            path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i}_fk64_b2.pth'
+            
             #CP_HeLa_Adam_epoch300_fk64_b2.pth
             #CP_HeLa_Adam_epoch98_fk32_b1.pth
             #path_model = f'{args.model_dir}/CP_HeLa_Adam_epoch{i+1}_fk64_b2.pth'
@@ -256,11 +260,16 @@ if __name__ == '__main__':
             NIH_Dice, NIH_IoU = eval(NIHtests, split_flag=args.split_flag)
             #print(HeLa_IoU)
             #print(NIH_IoU)
+            #print('HeLaIoU : {: .04f}\n'.format( HeLa_IoU[0] ) )
+            #print('NIHIoU : {: .04f}\n\n'.format( NIH_IoU[0] ) )
             with open(path_w, mode='a') as f:
-                f.write('epoch : {}\n'.format(i+1))
-                f.write('HeLaIoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
-                f.write('NIHIoU : {: .04f} +-{: .04f}\n\n'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU)))
-                
+                f.write('epoch : {}\n'.format(i))
+                if args.split_flag:
+                    f.write('HeLaIoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
+                    f.write('NIHIoU : {: .04f} +-{: .04f}\n\n'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU)))
+                else:
+                    f.write('HeLaIoU : {}\n'.format( HeLa_IoU[0] ) )
+                    f.write('NIHIoU : {}\n\n'.format( NIH_IoU[0] ) )
 
     else:
         """
