@@ -34,7 +34,8 @@ def train_net(net_g,
               num_k=2,
               co_B=0.1,
               large_flag=False,
-              try_flag=False):
+              try_flag=False,
+              ssl_flag=False):
 
     path_w = f"{dir_result}output.txt"
 
@@ -333,26 +334,35 @@ def train_net(net_g,
             
                 mask_prob_flat_t1 = mask_prob_t1.view(-1)
                 mask_prob_flat_t2 = mask_prob_t2.view(-1)
-                
-                
+
                 #場合によってはloss_dis定数倍も視野
-                
-                loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-                
-                if k == 0 :
-                    #print('Step B :' , loss_dis.item() / 2)
-                    B_dis = abs(loss_dis.item())
+                if ssl_flag:
+                    pseudo_lab_t1, pseudo_lab_t1, pseudo_dis_loss  = create_pseudo_label(mask_prob_flat_t1, \
+                                                                                         mask_prob_flat_t2, T_dis=thresh )
+                    L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1)
+                    L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2)
+
+                    loss = L_seg1 + L_seg2 + pseudo_dis_loss
+                else:
                     
-                    C_dis = abs(loss_dis.item())
-                    s_epoch_loss_after_B += loss_s.item()
-                    d_epoch_loss_after_B += abs(loss_dis.item())
-                elif k == (num_k - 1):
-                    #print('Step C :' , loss_dis.item() / 2)
-                    C_dis = abs(loss_dis.item())
+                    
+                
+                    loss = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                
+                    if k == 0 :
+                        #print('Step B :' , loss_dis.item() / 2)
+                        B_dis = abs(loss_dis.item())
+                    
+                        C_dis = abs(loss_dis.item())
+                        s_epoch_loss_after_B += loss_s.item()
+                        d_epoch_loss_after_B += abs(loss_dis.item())
+                    elif k == (num_k - 1):
+                        #print('Step C :' , loss_dis.item() / 2)
+                        C_dis = abs(loss_dis.item())
                 
                 #loss = loss_s + 2 * loss_dis
                 #loss.backward()
-                loss_dis.backward()
+                loss.backward()
                 
                 opt_g.step()
                 #opt_s1.step()
@@ -567,6 +577,8 @@ def get_args():
                         help='Is img size large?', dest='large_flag')
     parser.add_argument('-try', '--try-flag', type=bool, nargs='?', default=False,
                         help='run on try mode?', dest='try_flag')
+    parser.add_argument('-ssl', '--self-supervised', type=bool, nargs='?', default=False,
+                        help='ssl mode?', dest='ssl_flag')
     
     return parser.parse_args()
 
@@ -616,8 +628,8 @@ if __name__ == '__main__':
                   num_k=args.num_k,
                   co_B=args.co_B,
                   large_flag=args.large_flag,
-                  try_flag=args.try_flag
-        )
+                  try_flag=args.try_flag,
+                  ssl_flag=args.ssl_flag)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
