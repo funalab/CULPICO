@@ -33,8 +33,8 @@ def train_net(net_g,
               size=128,
               num_k=2,
               co_B=0.1,
-              large_flag=False
-):
+              large_flag=False,
+              try_flag=False):
 
     path_w = f"{dir_result}output.txt"
 
@@ -108,19 +108,20 @@ def train_net(net_g,
     #criterion_d = Diff2d()
     name = "phase"
     
-    trains_s = get_img_list(name, cell=source, large_flag)
-    trains_t = get_img_list(name, cell=target, large_flag)
+    trains_s = get_img_list(name, source, large_flag)
+    trains_t = get_img_list(name, target, large_flag)
 
     random.seed(0)
     random.shuffle(trains_s)
     random.shuffle(trains_t)
 
     if large_flag:
-        n_s = 124
-        n_t = 77
-    else:
         n_s = 1
         n_t = 1
+    else:
+        n_s = 124
+        n_t = 77
+        
 
     #for using 同数data of source と target 
     d = (len(trains_s) - n_s) - (len(trains_t) - n_t)
@@ -132,8 +133,8 @@ def train_net(net_g,
 
     len_train = len(ids_s['train'])
     #len_train_t = len(ids_t['train'])
-    len_val_s = len(ids_s['val'])
-    len_val_t = len(ids_t['val'])
+    #len_val_s = len(ids_s['val'])
+    #len_val_t = len(ids_t['val'])
     tr_s_loss_list = []
     tr_s_loss_list_C = []
     tr_s_loss_list_B = []
@@ -152,15 +153,73 @@ def train_net(net_g,
     AtoB = []
     BtoC = []
     CtoA = []
-    
-    for epoch in range(epochs):
-        count = 0
-        train_s = ids_s['train']
-        random.shuffle(train_s)
-        train_t = ids_t['train']
-        random.shuffle(train_t)
+
+    if large_flag:
+        
+        tmp_train_s = ids_s['train']
+        tmp_train_t = ids_t['train']
+
         val_s = ids_s['val']
         val_t = ids_t['val']
+
+        print(f"len tmp_train_s:{len(tmp_train_s)}")
+        print(type(tmp_train_s[0]))
+        print(tmp_train_s[0][0].shape)
+        #####train画像を1400x1680にmirror padding
+        #source
+        for k in tmp_train_s:
+            k[0] = mirror_padding(k[0], 1400, 1680)
+            k[1] = mirror_padding(k[1], 1400, 1680)
+        #target
+        for k in tmp_train_t:
+            k[0] = mirror_padding(k[0], 1400, 1680)
+            k[1] = mirror_padding(k[1], 1400, 1680)
+
+        for l in val_s:
+            l[0] = mirror_padding(l[0], 1024, 1536)
+            l[1] = mirror_padding(l[1], 1024, 1536)
+
+        for l in val_t:
+            l[0] = mirror_padding(l[0], 1024, 1536)
+            l[1] = mirror_padding(l[1], 1024, 1536)
+
+        #6分割( valの枚数 = 1 を想定 )
+        val_s = cutting_img( val_s[0], size )
+        val_t = cutting_img( val_t[0], size )
+        len_val_s = len( val_s )
+        len_val_t = len( val_t )
+        #print( "len of val_s is {}".format( len_val_s ) )
+        #print( "len of val_t is {}".format( len_val_t ) )
+        
+    else:
+
+        train_s = ids_s['train']
+        train_t = ids_t['train']
+
+        val_s = ids_s['val']
+        val_t = ids_t['val']
+
+    if try_flag:
+        print("\ntry run end ...")
+        return 0
+
+    for epoch in range(epochs):
+        count = 0
+        #train_s = ids_s['train']
+        #train_t = ids_t['train']
+        if large_flag:
+            train_s = []
+            train_t = []
+
+            for train_img_list in tmp_train_s:
+                train_s.append( random_cropping( train_img_list[0], train_img_list[1], size ) )
+            for train_img_list in tmp_train_t:
+                train_t.append( random_cropping( train_img_list[0], train_img_list[1], size ) )
+            
+        random.shuffle(train_s)
+        random.shuffle(train_t)
+        #val_s = ids_s['val']
+        #val_t = ids_t['val']
 
         
         #---- Train section
@@ -482,11 +541,11 @@ def get_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-e', '--epochs', metavar='E', type=int, default=5,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=1,
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
                         help='Batch size', dest='batchsize')
     parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
                         help='Learning rate', dest='lr')
-    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=32,
+    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
                         help='First num of kernels', dest='first_num_of_kernels')
     parser.add_argument('-om', '--optimizer-method', metavar='OM', type=str, nargs='?', default='Adam',
                         help='Optimizer method', dest='optimizer_method')
@@ -494,9 +553,9 @@ def get_args():
                         help='source cell', dest='source')
     parser.add_argument('-t', '--target', metavar='T', type=str, nargs='?', default='3T3',
                         help='target cell', dest='target')
-    parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=128,
+    parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=512,
                         help='Image size', dest='size')
-    parser.add_argument('-nk', '--num_k', metavar='NK', type=int, nargs='?', default=3,
+    parser.add_argument('-nk', '--num_k', metavar='NK', type=int, nargs='?', default=2,
                         help='how many steps to repeat the generator update', dest='num_k')
     parser.add_argument('-o', '--output', metavar='O', type=str, nargs='?', default='result',
                         help='out_dir?', dest='out_dir')
@@ -506,6 +565,8 @@ def get_args():
                         help='the coefficient in B?', dest='co_B')
     parser.add_argument('-lf', '--large-flag', type=bool, nargs='?', default=False,
                         help='Is img size large?', dest='large_flag')
+    parser.add_argument('-try', '--try-flag', type=bool, nargs='?', default=False,
+                        help='run on try mode?', dest='try_flag')
     
     return parser.parse_args()
 
@@ -554,7 +615,8 @@ if __name__ == '__main__':
                   size=args.size,
                   num_k=args.num_k,
                   co_B=args.co_B,
-                  large_flag=args.large_flag
+                  large_flag=args.large_flag,
+                  try_flag=args.try_flag
         )
                   
     except KeyboardInterrupt:

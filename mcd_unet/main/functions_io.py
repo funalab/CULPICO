@@ -207,11 +207,13 @@ def get_img_list(name, cell, large_flag):
     
     trains = []
     if large_flag:
-        absolute = os.path.abspath('../../dataset_smiyaki')
-        train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
-    else:
         absolute = os.path.abspath(f'../../dataset_smiyaki/training_data/{cell}_raw')
         train_files = glob.glob(f"{absolute}/*")
+
+        
+    else:
+        absolute = os.path.abspath('../../dataset_smiyaki')
+        train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
         
     for trainfile in train_files:
         ph_lab = [0] * 2
@@ -241,13 +243,16 @@ def get_img_list(name, cell, large_flag):
 def mirror_padding( img, h, w ):
 
     ### size check ###
-    if img.shape[0] > h or img.shape[1] > w:
-        print( "img is larger than specified size" ) 
+    if img.shape[0] >= h or img.shape[1] >= w:
+        print( "img is equal to or larger than specified size" ) 
         return img
 
     ### mirror padding process ###
     img_h = img.shape[0]
     img_w = img.shape[1]
+
+    #print(f"img_h:{img_h}")
+    #print(f"img_h:{img_w}")
     
     append_ha = np.empty( ( 0, img_w ), int )
     append_hb = np.empty( ( 0, img_w ), int )
