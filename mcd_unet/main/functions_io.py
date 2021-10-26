@@ -203,11 +203,16 @@ def draw_graph( save_dir, graph_name, epochs, red_list=None, red_label=None, blu
         plt.clf()
         plt.close()
 
-def get_img_list(name, cell):
+def get_img_list(name, cell, large_flag):
     
     trains = []
-    absolute = os.path.abspath('../../dataset_smiyaki')    
-    train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
+    if large_flag:
+        absolute = os.path.abspath('../../dataset_smiyaki')
+        train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
+    else:
+        absolute = os.path.abspath(f'../../dataset_smiyaki/training_data/{cell}_raw')
+        train_files = glob.glob(f"{absolute}/*")
+        
     for trainfile in train_files:
         ph_lab = [0] * 2
         #*set*/
@@ -219,7 +224,8 @@ def get_img_list(name, cell):
             if name in path_img:
                 #original unet scaling (subtracting by median)
                 img = scaling_image(img)
-                #img = img - np.median(img)
+                if large_flag:
+                    img = img - np.median(img)
 
                 #ndim==2でlistに格納
                 ph_lab[0] = img

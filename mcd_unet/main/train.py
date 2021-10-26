@@ -108,14 +108,19 @@ def train_net(net_g,
     #criterion_d = Diff2d()
     name = "phase"
     
-    trains_s = get_img_list(name, cell=source)
-    trains_t = get_img_list(name, cell=target)
+    trains_s = get_img_list(name, cell=source, large_flag)
+    trains_t = get_img_list(name, cell=target, large_flag)
 
     random.seed(0)
     random.shuffle(trains_s)
     random.shuffle(trains_t)
-    n_s = 124
-    n_t = 77
+
+    if large_flag:
+        n_s = 124
+        n_t = 77
+    else:
+        n_s = 1
+        n_t = 1
 
     #for using 同数data of source と target 
     d = (len(trains_s) - n_s) - (len(trains_t) - n_t)
