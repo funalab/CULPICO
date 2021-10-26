@@ -31,7 +31,8 @@ def train_net(net,
               optimizer_method = 'Adam',
               cell='HeLa',
               size=128,
-              scaling_type=None):
+              scaling_type=None,
+              try_flag=False):
               
     print('first num of kernels:', first_num_of_kernels)
     print('optimizer method:', optimizer_method)
@@ -126,10 +127,14 @@ def train_net(net,
 
     #6分割( valの枚数 = 1 を想定 )
     
-    
+    print( f"after mirror_p shape:{tmp_train[0][0].shape}" )
     val_sepa = cutting_img( val[0], size )
     len_val = len( val_sepa )
     print( "len of val_sepa is {}".format( len( val_sepa ) ) )
+
+    if try_flag:
+        print("\ntry run end ...")
+        return 0
     
     for epoch in range(epochs):
         count = 0
@@ -275,7 +280,8 @@ def get_args():
                         help='gpu_num?', dest='gpu_num')
     parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='unet',
                         help='scaling method??', dest='scaling_type')
-    
+    parser.add_argument('-try', '--try-mode', metavar='TM', type=bool, nargs='?', default=False,
+                        help='running on try mode?', dest='try_flag')
     #parser.add_argument('-f', '--load', dest='load', type=str, default=False,
     #                    help='Load model from a .pth file')
     #parser.add_argument('-s', '--scale', dest='scale', type=float, default=0.5,
@@ -301,8 +307,13 @@ if __name__ == '__main__':
     net.to(device=device)
     # faster convolutions, but more memory
     # cudnn.benchmark = True
-    dir_checkpoint = f'./checkpoint_{args.cell}_{args.optimizer_method}_size{args.size}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}_{args.scaling_type}'
-    dir_result = f'./result_{args.cell}_{args.optimizer_method}_size{args.size}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}_{args.scaling_type}'
+    if args.try_flag:
+        dir_checkpoint = './checkpoint'
+        dir_result = './result'
+    else:
+        dir_checkpoint = f'./checkpoint_{args.cell}_{args.optimizer_method}_size{args.size}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}_{args.scaling_type}'
+        dir_result = f'./result_{args.cell}_{args.optimizer_method}_size{args.size}_fk{args.first_num_of_kernels}_b{args.batchsize}_e{args.epochs}_{args.scaling_type}'
+
     os.makedirs(dir_checkpoint, exist_ok=True)
     os.makedirs(dir_result, exist_ok=True)
     try:
@@ -317,7 +328,8 @@ if __name__ == '__main__':
                   optimizer_method=args.optimizer_method,
                   cell=args.cell,
                   size=args.size,
-                  scaling_type=args.scaling_type)
+                  scaling_type=args.scaling_type,
+                  try_flag=args.try_flag)
                   #img_scale=args.scale,
                   #val_percent=args.val / 100)
     except KeyboardInterrupt:
