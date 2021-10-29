@@ -444,7 +444,7 @@ def train_net(net_g,
                 opt_s1.zero_grad()
                 opt_s2.zero_grad()
             #record discrepancy loss
-            d_epoch_loss += abs(loss_dis.item()) 
+            d_epoch_loss += abs(loss_dis.item())
             
 
             
@@ -574,31 +574,47 @@ def train_net(net_g,
         
         if current_val_s_loss < min_val_s_loss:
             min_val_s_loss = current_val_s_loss
-            s_best_g = net_g.state_dict()
-            s_best_s = net_s1.state_dict()
+            #s_best_g = net_g.state_dict()
+            #s_best_s = net_s1.state_dict()
             s_bestepoch = epoch + 1
-            torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-            torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+            #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+            #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+            best_g = net_g.state_dict()
+            best_s1 = net_s1.state_dict()
+            best_s2 = net_s2.state_dict()
+            op_g = opt_g.state_dict()
+            op_s1 = opt_s1.state_dict()
+            op_s2 = opt_s2.state_dict()
+            
+            #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+            #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+            torch.save({
+                'best_g' : best_g,
+                'best_s1' : best_s1,
+                'best_s2' : best_s2,
+                'opt_g' : op_g,
+                'opt_s1' : op_s1,
+                'opt_s2' : op_s2,
+            }, '{}CP_min_dloss_e{}'.format(dir_checkpoint, epoch+1))
+            
+            
             with open(path_w, mode='a') as f:
                 f.write('val seg loss is update \n')
 
         if current_val_d_loss < min_val_d_loss:
             min_val_d_loss = current_val_d_loss
-            s_best_g = net_g.state_dict()
-            s_best_s = net_s1.state_dict()
-            torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-            torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+
+            ###model, optimizer save
             
-            d_bestepoch = epoch + 1
             with open(path_w, mode='a') as f:
                 f.write('val dis loss is update \n')
 
             
 
-            my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list}
+        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list}
 
-            with open(path_lossList, "wb") as tf:
-                pickle.dump( my_dict, tf )
+        with open(path_lossList, "wb") as tf:
+            pickle.dump( my_dict, tf )
                 
             
     dt_now = datetime.datetime.now()
