@@ -416,11 +416,11 @@ def calc_IoU(inf, mask):
     
     return Dice, IoU
 
-def create_pseudo_label( p1, p2, T_dis, T_object=0.5 ):
+def create_pseudo_label( p1, p2, T_dis, T_object=0.5, device='cpu' ):
     #p1:output of S1(after sigmoid), p2:output of S2
     p_mean = ( p1 + p2 ) / 2
     dis = torch.abs( p1 - p2 )
-    tmp_label = torch.where( p_mean>T_object, torch.tensor(1, dtype=dis.dtype), torch.tensor(0, dtype=dis.dtype) )
+    tmp_label = torch.where( p_mean>T_object, torch.tensor(1, dtype=dis.dtype, device=torch.device(device)), torch.tensor(0, dtype=dis.dtype, device=torch.device(device)) )
     pselab_p1 = torch.where( dis<T_dis, tmp_label, p1 )
     pselab_p2 = torch.where( dis<T_dis, tmp_label, p2 )
     loss_dis = torch.mean( dis[torch.where( dis>=T_dis )] )

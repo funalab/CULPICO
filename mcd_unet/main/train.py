@@ -74,7 +74,7 @@ def train_net(net_g,
         opt_g = optim.Adam(
             net_g.parameters(),
             #lr=0.001,
-            lr=0.0001,
+            lr=lr,
             #0.002
             betas=(0.9, 0.999),
             eps=1e-08,
@@ -85,7 +85,7 @@ def train_net(net_g,
         )
         opt_s1 = optim.Adam(
             net_s1.parameters(),
-            lr=0.0001,
+            lr=lr,
             #0.002
             betas=(0.9, 0.999),
             eps=1e-08,
@@ -96,7 +96,7 @@ def train_net(net_g,
         )
         opt_s2 = optim.Adam(
             net_s2.parameters(),
-            lr=0.0001,
+            lr=lr,
             #0.002
             betas=(0.9, 0.999),
             eps=1e-08,
@@ -200,6 +200,9 @@ def train_net(net_g,
 
         val_s = ids_s['val']
         val_t = ids_t['val']
+
+        len_val_s = len(val_s)
+        len_val_t = len(val_t)
 
     if try_flag:
         print("\ntry run end ...")
@@ -338,28 +341,29 @@ def train_net(net_g,
 
                 #場合によってはloss_dis定数倍も視野
                 if ssl_flag:
-                    pseudo_lab_t1, pseudo_lab_t1, pseudo_dis_loss  = create_pseudo_label(mask_prob_flat_t1, \
-                                                                                         mask_prob_flat_t2, T_dis=thresh )
-                    L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1)
-                    L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2)
+                    pseudo_lab_t1, pseudo_lab_t2, pseudo_dis_loss = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
+                                                                                        T_dis=thresh, device=device)
+                    L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1.detach())
+                    L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2.detach())
 
                     loss = L_seg1 + L_seg2 + pseudo_dis_loss
+                    
                 else:
                     
                     
                 
                     loss = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
                 
-                    if k == 0 :
+                if k == 0 :
                         #print('Step B :' , loss_dis.item() / 2)
-                        B_dis = abs(loss_dis.item())
+                    B_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2)).item()
                     
-                        C_dis = abs(loss_dis.item())
-                        s_epoch_loss_after_B += loss_s.item()
-                        d_epoch_loss_after_B += abs(loss_dis.item())
-                    elif k == (num_k - 1):
-                        #print('Step C :' , loss_dis.item() / 2)
-                        C_dis = abs(loss_dis.item())
+                        #C_dis = abs(loss.item())
+                    s_epoch_loss_after_B += loss_s.item()
+                    d_epoch_loss_after_B += abs(loss_dis.item())
+                elif k == (num_k - 1):
+                    #print('Step C :' , loss_dis.item() / 2)
+                    C_dis = abs(loss.item())
                 
                 #loss = loss_s + 2 * loss_dis
                 #loss.backward()
@@ -498,18 +502,22 @@ def train_net(net_g,
 
         s_best_g = net_g.state_dict()
         s_best_s = net_s1.state_dict()
-        torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-        torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+        #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+        #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
         
         if current_val_s_loss < min_val_s_loss:
             min_val_s_loss = current_val_s_loss
             
             s_bestepoch = epoch + 1
+            torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+            torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
             with open(path_w, mode='a') as f:
                 f.write('val seg loss is update \n')
 
         if current_val_d_loss < min_val_d_loss:
             min_val_d_loss = current_val_d_loss
+            torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
+            torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
             
             d_bestepoch = epoch + 1
             with open(path_w, mode='a') as f:
@@ -556,7 +564,7 @@ def get_args():
                         help='Batch size', dest='batchsize')
     parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
                         help='Learning rate', dest='lr')
-    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
+    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=32,
                         help='First num of kernels', dest='first_num_of_kernels')
     parser.add_argument('-om', '--optimizer-method', metavar='OM', type=str, nargs='?', default='Adam',
                         help='Optimizer method', dest='optimizer_method')
