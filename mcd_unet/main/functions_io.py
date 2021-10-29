@@ -139,7 +139,7 @@ def batch_ver2(iterable, batch_size, cell):
     if len(b) > 0:
         yield b
     
-def batch(iterable, batch_size):
+def batch(iterable, batch_size, source):
     
     b = []
     for i, t in enumerate(iterable):
@@ -149,10 +149,15 @@ def batch(iterable, batch_size):
         #ndim == 2 を想定
         tmp_list = [0] * 2
         if t[0].ndim==2:
-            rotate_img, ang, fl = random_rotate_image(t[0], return_angle=True)
-            rotate_mask = random_rotate_image(t[1], spin=ang, flip=fl)
-            tmp_list[0] =   rotate_img.reshape([1, rotate_img.shape[-2], rotate_img.shape[-1]])
-            tmp_list[1] =   rotate_mask.reshape([1, rotate_mask.shape[-2], rotate_mask.shape[-1]])
+            if source == 'HeLa':
+                rotate_img, ang, fl = random_rotate_image(t[0], return_angle=True)
+                rotate_mask = random_rotate_image(t[1], spin=ang, flip=fl)
+                tmp_list[0] = rotate_img.reshape([1, rotate_img.shape[-2], rotate_img.shape[-1]])
+                tmp_list[1] = rotate_mask.reshape([1, rotate_mask.shape[-2], rotate_mask.shape[-1]])
+            
+            elif source =='bt474':
+                tmp_list[0] = t[0].reshape([1, t[0].shape[-2], t[0].shape[-1]])
+                tmp_list[1] = t[1].reshape([1, t[1].shape[-2], t[1].shape[-1]])
         else:
             print('ndim error!')
         

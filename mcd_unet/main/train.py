@@ -15,6 +15,7 @@ from skimage import io
 import random
 import matplotlib.pyplot as plt
 import datetime
+import pickle
 
 def train_net(net_g,
               net_s1,
@@ -36,9 +37,12 @@ def train_net(net_g,
               co_B=0.1,
               large_flag=False,
               try_flag=False,
-              ssl_flag=False):
+              ssl_flag=False,
+              scaling_type='normal'):
 
     path_w = f"{dir_result}output.txt"
+    path_lossList = f"{dir_result}loss_list.pkl"
+    
 
     with open(path_w, mode='w') as f:
         
@@ -108,35 +112,83 @@ def train_net(net_g,
 
     criterion = nn.BCELoss()
     #criterion_d = Diff2d()
-    name = "phase"
     
-    trains_s = get_img_list(name, source, large_flag)
-    trains_t = get_img_list(name, target, large_flag)
+    if source == 'HeLa':
+        name = "phase"
+        trains_s = get_img_list(name, source, large_flag)
+        trains_t = get_img_list(name, target, large_flag)
 
-    random.seed(0)
-    random.shuffle(trains_s)
-    random.shuffle(trains_t)
+        random.seed(0)
+        random.shuffle(trains_s)
+        random.shuffle(trains_t)
 
-    if large_flag:
-        n_s = 1
-        n_t = 1
-    else:
-        n_s = 124
-        n_t = 77
+        if large_flag:
+            n_s = 1
+            n_t = 1
+        else:
+            n_s = 124
+            n_t = 77
         
 
-    #for using 同数data of source と target 
-    d = (len(trains_s) - n_s) - (len(trains_t) - n_t)
-    ids_s = {'train': trains_s[:-n_s], 'val': trains_s[-n_s:]}
-    tmp_t_tr = trains_t[:-n_t]
-    tmp_t_val = trains_t[-n_t:]
-    tmp_t_tr.extend(tmp_t_tr[:d])
-    ids_t = {'train': tmp_t_tr, 'val': tmp_t_val }
+        #for using 同数data of source と target 
+        d = (len(trains_s) - n_s) - (len(trains_t) - n_t)
+        ids_s = {'train': trains_s[:-n_s], 'val': trains_s[-n_s:]}
+        tmp_t_tr = trains_t[:-n_t]
+        tmp_t_val = trains_t[-n_t:]
+        tmp_t_tr.extend(tmp_t_tr[:d])
+        ids_t = {'train': tmp_t_tr, 'val': tmp_t_val }
 
-    len_train = len(ids_s['train'])
-    #len_train_t = len(ids_t['train'])
-    #len_val_s = len(ids_s['val'])
-    #len_val_t = len(ids_t['val'])
+        len_train = len(ids_s['train'])
+        #len_train_t = len(ids_t['train'])
+        #len_val_s = len(ids_s['val'])
+        #len_val_t = len(ids_t['val'])
+
+    elif source == 'bt474':
+        sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{source}'
+        targetDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{target}'
+        #load train images
+        trsourceFiles = glob.glob(f'{sourceDir}/train_and_test/*')
+        trtargetFiles = glob.glob(f'{targetDir}/train/*')
+
+        trains_s = create_trainlist( trsourceFiles, scaling_type )
+        trains_t = create_trainlist( trtargetFiles, scaling_type )
+
+        #train: (520, 704)->(560, 784)
+        for k in trains_s:
+            k[0] = mirror_padding(k[0], 560, 784)
+            k[1] = mirror_padding(k[1], 560, 784)
+        for k in trains_t:
+            k[0] = mirror_padding(k[0], 560, 784)
+            k[1] = mirror_padding(k[1], 560, 784)
+        #adjust len(train_s) == len(train_t)
+        d = len(trains_s) - len(trains_t)
+        trains_t.extend(trains_t[:d])
+
+        len_train = len(trains_s)
+        
+        #load val images
+        valsourceFiles = glob.glob(f'{sourceDir}/val/*')
+        valtargetFiles = glob.glob(f'{targetDir}/val/*')
+
+        vals_s = create_trainlist( valsourceFiles, scaling_type )
+        vals_t = create_trainlist( valtargetFiles, scaling_type )
+
+        val_s = []
+        val_t = []
+        for l in vals_s:
+            l[0] = mirror_padding(l[0], 544, 704)
+            l[1] = mirror_padding(l[1], 544, 704)
+            sepaList = cutting_img( l, 272, 352 )
+            val_s.extend(sepaList)
+        for l in vals_t:
+            l[0] = mirror_padding(l[0], 544, 704)
+            l[1] = mirror_padding(l[1], 544, 704)
+            sepaList = cutting_img( l, 272, 352 )
+            val_t.extend(sepaList)
+
+        len_val_s = len(val_s)
+        len_val_t = len(val_t) 
+        
     tr_s_loss_list = []
     tr_s_loss_list_C = []
     tr_s_loss_list_B = []
@@ -194,17 +246,22 @@ def train_net(net_g,
         #print( "len of val_t is {}".format( len_val_t ) )
         
     else:
+        if source == 'HeLa':
 
-        train_s = ids_s['train']
-        train_t = ids_t['train']
+            train_s = ids_s['train']
+            train_t = ids_t['train']
+            
+            val_s = ids_s['val']
+            val_t = ids_t['val']
 
-        val_s = ids_s['val']
-        val_t = ids_t['val']
-
-        len_val_s = len(val_s)
-        len_val_t = len(val_t)
+            len_val_s = len(val_s)
+            len_val_t = len(val_t)
 
     if try_flag:
+        print(f'len_train_s: {len_train}')
+        print(f'len_train_t: {len(trains_t)}')
+        print(f'len_val_s: {len_val_s}')
+        print(f'len_val_t: {len_val_t}')
         print("\ntry run end ...")
         return 0
 
@@ -217,9 +274,19 @@ def train_net(net_g,
             train_t = []
 
             for train_img_list in tmp_train_s:
-                train_s.append( random_cropping( train_img_list[0], train_img_list[1], size ) )
+                train_s.append( random_cropping( train_img_list[0], train_img_list[1], size, size ) )
             for train_img_list in tmp_train_t:
-                train_t.append( random_cropping( train_img_list[0], train_img_list[1], size ) )
+                train_t.append( random_cropping( train_img_list[0], train_img_list[1], size, size ) )
+
+        if source == 'bt474':
+            train_s = []
+            train_t = []
+
+            for train_img_list in trains_s:
+                train_s.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
+            for train_img_list in trains_t:
+                train_t.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
+
             
         random.shuffle(train_s)
         random.shuffle(train_t)
@@ -235,7 +302,7 @@ def train_net(net_g,
         d_epoch_loss = 0
         d_epoch_loss_after_A = 0
         d_epoch_loss_after_B = 0
-        for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size), batch(train_t, batch_size))):
+        for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size, source), batch(train_t, batch_size, source))):
             img_s = np.array([i[0] for i in bs]).astype(np.float32)
             mask = np.array([i[1] for i in bs]).astype(np.float32)
             img_t = np.array([i[0] for i in bt]).astype(np.float32)
@@ -507,7 +574,8 @@ def train_net(net_g,
         
         if current_val_s_loss < min_val_s_loss:
             min_val_s_loss = current_val_s_loss
-            
+            s_best_g = net_g.state_dict()
+            s_best_s = net_s1.state_dict()
             s_bestepoch = epoch + 1
             torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
             torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
@@ -516,13 +584,23 @@ def train_net(net_g,
 
         if current_val_d_loss < min_val_d_loss:
             min_val_d_loss = current_val_d_loss
+            s_best_g = net_g.state_dict()
+            s_best_s = net_s1.state_dict()
             torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
             torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
             
             d_bestepoch = epoch + 1
             with open(path_w, mode='a') as f:
                 f.write('val dis loss is update \n')
+
+            
+
+            my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list}
+
+            with open(path_lossList, "wb") as tf:
+                pickle.dump( my_dict, tf )
                 
+            
     dt_now = datetime.datetime.now()
     y = dt_now.year
     mon = dt_now.month
@@ -590,6 +668,8 @@ def get_args():
                         help='ssl mode?', dest='ssl_flag')
     parser.add_argument('-th', '--threshold', type=float, nargs='?', default=0.01,
                         help='ssl threshold?', dest='thresh')
+    parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='unet',
+                        help='scaling method??', dest='scaling_type')
     
     return parser.parse_args()
 
@@ -641,7 +721,8 @@ if __name__ == '__main__':
                   co_B=args.co_B,
                   large_flag=args.large_flag,
                   try_flag=args.try_flag,
-                  ssl_flag=args.ssl_flag)
+                  ssl_flag=args.ssl_flag,
+                  scaling_type=args.scaling_type)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
