@@ -110,7 +110,7 @@ def random_rotate_image(image: np.ndarray, return_angle: bool = False, spin: int
     else:
         return new_img
 
-def batch_t(iterable, batch_size):
+def batch_ver2(iterable, batch_size, cell):
     b = []
     for i, t in enumerate(iterable):
         ## ndim == 3の場合　t[i][0], t[i][1]　を　(1,128,128)->(128,128)
@@ -121,8 +121,13 @@ def batch_t(iterable, batch_size):
         if t[0].ndim==2:
             rotate_img, ang, fl = random_rotate_image(t[0], return_angle=True)
             rotate_mask = random_rotate_image(t[1], spin=ang, flip=fl)
-            tmp_list[0] =   rotate_img.reshape([1, rotate_img.shape[-2], rotate_img.shape[-1]])
-            tmp_list[1] =   rotate_mask.reshape([1, rotate_mask.shape[-2], rotate_mask.shape[-1]])
+            if cell == 'bt474':
+                tmp_list = random_cropping( rotate_img, rotate_mask, 272, 352 )
+                tmp_list[0] = tmp_list[0].reshape([1, tmp_list[0].shape[-2], tmp_list[0].shape[-1]])
+                tmp_list[1] = tmp_list[1].reshape([1, tmp_list[1].shape[-2], tmp_list[1].shape[-1]])
+            else:
+                tmp_list[0] = rotate_img.reshape([1, rotate_img.shape[-2], rotate_img.shape[-1]])
+                tmp_list[1] = rotate_mask.reshape([1, rotate_mask.shape[-2], rotate_mask.shape[-1]])
         else:
             print('ndim error!')
         
@@ -243,7 +248,7 @@ def get_img_list(name, cell, large_flag):
 def mirror_padding( img, h, w ):
 
     ### size check ###
-    if img.shape[0] >= h or img.shape[1] >= w:
+    if img.shape[0] >= h or img.shape[1] > w:
         print( "img is equal to or larger than specified size" ) 
         return img
 
@@ -272,38 +277,41 @@ def mirror_padding( img, h, w ):
     img = np.append(img, append_hb, axis=0)
 
     diff_w = w - img_w
+        
     wl = int( diff_w / 2 )
+
+    if diff_w != 0:
+        
+        append_wl = np.empty( ( 0, wl ), int )
     
-    append_wl = np.empty( ( 0, wl ), int )
-    
-    for i in range( h ):
-        append_wl = np.append( append_wl, img[i][wl-1::-1].reshape( 1, wl ), axis=0 )
+        for i in range( h ):
+            append_wl = np.append( append_wl, img[i][wl-1::-1].reshape( 1, wl ), axis=0 )
                 
     
-    wr = wl if diff_w % 2 == 0 else wl+1
+        wr = wl if diff_w % 2 == 0 else wl+1
    
-    append_wr = np.empty( ( 0, wr ), int )        
-    
-    for i in range( h ):
+        append_wr = np.empty( ( 0, wr ), int )        
+            
+        for i in range( h ):
         
-        append_wr = np.append( append_wr, img[i][img_w-1:img_w-wr-1:-1].reshape( 1, wr ), axis=0 )
+            append_wr = np.append( append_wr, img[i][img_w-1:img_w-wr-1:-1].reshape( 1, wr ), axis=0 )
 
-    #append left & right                
-    img = np.append(append_wl, img, axis=1)
-    img = np.append(img, append_wr, axis=1) 
+        #append left & right                
+        img = np.append(append_wl, img, axis=1)
+        img = np.append(img, append_wr, axis=1) 
         
     return img
 
-def random_cropping( img, lab, size ):
+def random_cropping( img, lab, outH, outW ):
 
     #img, labはnp.ndarrayを想定
 
-    trans = transforms.RandomCrop( ( size, size ) )
+    trans = transforms.RandomCrop( ( outH, outW ) )
 
     pil_img = Image.fromarray( img )
     pil_lab = Image.fromarray( lab )
 
-    i, j, h, w = transforms.RandomCrop.get_params( pil_img, output_size=( size, size ) )
+    i, j, h, w = transforms.RandomCrop.get_params( pil_img, output_size=( outH, outW ) )
 
     crop_img = np.array( tvf.crop( pil_img, i, j, h, w ) )
 
@@ -317,13 +325,13 @@ def random_cropping( img, lab, size ):
     return crop_list
     
 
-def cutting_img( img_list, size ):
+def cutting_img( img_list, size_h, size_w ):
     height = img_list[0].shape[0]
     width = img_list[0].shape[1]
     #print(f"height={height}")
     #print(f"width={width}")
-    n_h = int( height / size )
-    n_w = int( width / size )
+    n_h = int( height / size_h )
+    n_w = int( width / size_w )
     #print(f"n_h={n_h}")
     #print(f"n_w={n_w}")
     #print(f"img_list[0].shape={img_list[0].shape}")
@@ -334,8 +342,8 @@ def cutting_img( img_list, size ):
     for i in range ( n_h ):
         for j in range ( n_w ):
             
-            cut_imgs[0] = img_list[0][ i * size : i * size + size , j * size : j * size + size ]            
-            cut_imgs[1] = img_list[1][ i * size : i * size + size , j * size : j * size + size ] 
+            cut_imgs[0] = img_list[0][ i * size_h : i * size_h + size_h , j * size_w : j * size_w + size_w ]            
+            cut_imgs[1] = img_list[1][ i * size_h : i * size_h + size_h , j * size_w : j * size_w + size_w ] 
             
             cut_list.append( copy.copy(cut_imgs) )
             
@@ -412,10 +420,35 @@ def create_pseudo_label( p1, p2, T_dis, T_object=0.5 ):
     #p1:output of S1(after sigmoid), p2:output of S2
     p_mean = ( p1 + p2 ) / 2
     dis = torch.abs( p1 - p2 )
-    tmp_label = torch.where( p_mean>T_object, torch.tensor(1, dtype=d.dtype), torch.tensor(0, dtype=d.dtype) )
+    tmp_label = torch.where( p_mean>T_object, torch.tensor(1, dtype=dis.dtype), torch.tensor(0, dtype=dis.dtype) )
     pselab_p1 = torch.where( dis<T_dis, tmp_label, p1 )
     pselab_p2 = torch.where( dis<T_dis, tmp_label, p2 )
     loss_dis = torch.mean( dis[torch.where( dis>=T_dis )] )
 
     return pselab_p1, pselab_p2, loss_dis
 
+def create_trainlist(setList, scaling_type):
+
+    trains = []
+    
+    for setPath in setList:
+        imgSet = [0] * 2
+        
+        filepathList = glob.glob(f"{setPath}/*")
+ 
+        for filePath in filepathList:
+            
+            img = io.imread( filePath )
+            if 'Phase' in filePath:
+                img = scaling_image(img)
+                if scaling_type == "unet":
+                    img = img - np.median(img)
+                imgSet[-2] = img
+ 
+            else:
+                img = img / 255
+                imgSet[-1] = img
+ 
+        trains.append(imgSet)
+
+    return trains

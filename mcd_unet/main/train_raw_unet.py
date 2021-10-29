@@ -56,15 +56,40 @@ def train_net(net,
         )
         
     criterion = nn.BCELoss()
-    
+
+    if cell == 'bt474':
+        
+        cellDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{cell}'
+        #load train images
+        
+        trainFiles = glob.glob(f'{cellDir}/train/*')
+        
+        trains = create_trainlist( trainFiles, scaling_type )
+        
+        #load val images
+        valFiles = glob.glob(f'{cellDir}/val/*')
+        vals = create_trainlist( valFiles, scaling_type )
+
+        #train: (520, 704)->(800, 800)
+        for k in trains:
+            k[0] = mirror_padding(k[0], 800, 800)
+            k[1] = mirror_padding(k[1], 800, 800)
+        #val: (520, 704)->(260, 352)*4->(272,352)*4
+        val_sepa = []
+        for l in vals:
+            l[0] = mirror_padding(l[0], 544, 704)
+            l[1] = mirror_padding(l[1], 544, 704)
+            sepaList = cutting_img( l, 272, 352 )
+            val_sepa.extend(sepaList)
+    """
     absolute = os.path.abspath(f'../../dataset_smiyaki/training_data/{cell}_raw')
     
-    """    
-    if size == 128: 
-        train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
-    elif size == 640:
-        train_files = glob.glob(f"{absolute}/training_data/{cell}_640/*")
-    """
+        
+    # if size == 128: 
+    #    train_files = glob.glob(f"{absolute}/training_data/{cell}_set/*")
+    #elif size == 640:
+    #   train_files = glob.glob(f"{absolute}/training_data/{cell}_640/*")
+   
 
 
     trains = []
@@ -131,6 +156,16 @@ def train_net(net,
     val_sepa = cutting_img( val[0], size )
     len_val = len( val_sepa )
     print( "len of val_sepa is {}".format( len( val_sepa ) ) )
+    """
+
+    trloss_list = []
+    valloss_list = []
+    valiou_list = []
+    min_val_loss = 10000.0
+    len_train = len(trains)
+    len_val = len( val_sepa )
+    print(f"len_train is {len_train}")
+    print(f"len_val is {len_val}")
 
     if try_flag:
         print("\ntry run end ...")
@@ -139,13 +174,18 @@ def train_net(net,
     for epoch in range(epochs):
         count = 0
         train = []
-        #train画像(phase, label)からランダムクロップしてlistにまとめる
-        for train_img_list in tmp_train:
-            train.append( random_cropping( train_img_list[0], train_img_list[1], size ) )
         
+        if cell == 'bt474':
+            train = trains
+        else:
+            #train画像(phase, label)からランダムクロップしてlistにまとめる
+            for train_img_list in tmp_train:
+                train.append( random_cropping( train_img_list[0], train_img_list[1], size ) )
+
+        random.shuffle(train)
         #---- Train section
         epoch_loss = 0
-        for i, b in enumerate(batch(train, batch_size)):
+        for i, b in enumerate(batch_ver2(train, batch_size, cell)):
             
             img = np.array([i[0] for i in b]).astype(np.float32)
             mask = np.array([i[1] for i in b]).astype(np.float32)
@@ -228,16 +268,16 @@ def train_net(net,
         valiou_list.append(val_iou / len_val)
         if (val_loss / len_val) < min_val_loss:
             min_val_loss = (val_loss / len_val)
-            #bestmodel = net.state_dict()
-            #bestepoch = epoch + 1
+            bestmodel = net.state_dict()
+            bestepoch = epoch + 1
             print('best model is updated !')
 
-        bestmodel = net.state_dict()
-        bestepoch = epoch + 1
-        torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
+        #bestmodel = net.state_dict()
+        #bestepoch = epoch + 1
+        #torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
         print('Checkpoint {}_epoch{}_fk{}_b{} saved !'.format(optimizer_method, bestepoch, first_num_of_kernels, batch_size))
         print('Validation IoU Loss: {}'.format(valiou_list[bestepoch - 1]))
-    
+    torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
     # plot learning curve
     loss_graph = plt.figure()
     plt.plot(range(epochs), trloss_list, 'b-', label='train_loss')

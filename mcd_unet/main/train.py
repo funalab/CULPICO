@@ -24,6 +24,7 @@ def train_net(net_g,
               batch_size=4,
               lr=0.1,
               first_num_of_kernels=64,
+              thresh=0.01,
               dir_checkpoint='checkpoint/',
               dir_result='result/',
               dir_graphs=f'result/',
@@ -231,7 +232,7 @@ def train_net(net_g,
         d_epoch_loss = 0
         d_epoch_loss_after_A = 0
         d_epoch_loss_after_B = 0
-        for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size), batch_t(train_t, batch_size))):
+        for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size), batch(train_t, batch_size))):
             img_s = np.array([i[0] for i in bs]).astype(np.float32)
             mask = np.array([i[1] for i in bs]).astype(np.float32)
             img_t = np.array([i[0] for i in bt]).astype(np.float32)
@@ -563,7 +564,7 @@ def get_args():
                         help='source cell', dest='source')
     parser.add_argument('-t', '--target', metavar='T', type=str, nargs='?', default='3T3',
                         help='target cell', dest='target')
-    parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=512,
+    parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=128,
                         help='Image size', dest='size')
     parser.add_argument('-nk', '--num_k', metavar='NK', type=int, nargs='?', default=2,
                         help='how many steps to repeat the generator update', dest='num_k')
@@ -579,6 +580,8 @@ def get_args():
                         help='run on try mode?', dest='try_flag')
     parser.add_argument('-ssl', '--self-supervised', type=bool, nargs='?', default=False,
                         help='ssl mode?', dest='ssl_flag')
+    parser.add_argument('-th', '--threshold', type=float, nargs='?', default=0.01,
+                        help='ssl threshold?', dest='thresh')
     
     return parser.parse_args()
 
@@ -618,6 +621,7 @@ if __name__ == '__main__':
                   lr=args.lr,
                   first_num_of_kernels=args.first_num_of_kernels,
                   device=device,
+                  thresh=args.thresh,
                   dir_checkpoint=f'{dir_checkpoint}/',
                   dir_result=f'{dir_result}/',
                   dir_graphs=f'{dir_graphs}/',
