@@ -39,77 +39,80 @@ def train_net(net_g,
               try_flag=False,
               ssl_flag=False,
               scaling_type='normal',
-              saEpoch=None):
+              saEpoch=None,
+              opt_g=None,
+              opt_s1=None,
+              opt_s2=None):
 
     path_w = f"{dir_result}output.txt"
     path_lossList = f"{dir_result}loss_list.pkl"
     
-
+    
     with open(path_w, mode='w') as f:
         
         f.write('first num of kernels:{} \n'.format(first_num_of_kernels))
         f.write('optimizer method:{} \n'.format(optimizer_method))
 
-    
-    
-    if optimizer_method == 'SGD':
-        opt_g = optim.SGD(
-            net_g.parameters(),
-            lr=0.0001,
-            momentum=0.9,
-            weight_decay=2e-5
-        )
+    #optimizer set
+    if opt_g == None:
+        if optimizer_method == 'SGD':
+            opt_g = optim.SGD(
+                net_g.parameters(),
+                lr=0.0001,
+                momentum=0.9,
+                weight_decay=2e-5
+            )
 
-        opt_s1 = optim.SGD(
-            net_s1.parameters(),
-            lr=0.0001,
-            momentum=0.9,
-            weight_decay=2e-5
-        )
+            opt_s1 = optim.SGD(
+                net_s1.parameters(),
+                lr=0.0001,
+                momentum=0.9,
+                weight_decay=2e-5
+            )
 
-        opt_s2 = optim.SGD(
-            net_s2.parameters(),
-            #lr=0.001,
-            lr=0.0001,
-            momentum=0.9,
-            weight_decay=2e-5
-        )
+            opt_s2 = optim.SGD(
+                net_s2.parameters(),
+                #lr=0.001,
+                lr=0.0001,
+                momentum=0.9,
+                weight_decay=2e-5
+            )
         
-    else:
-        opt_g = optim.Adam(
-            net_g.parameters(),
-            #lr=0.001,
-            lr=lr,
-            #0.002
-            betas=(0.9, 0.999),
-            eps=1e-08,
-            #default
-            weight_decay=0,
-            #0.0005
-            amsgrad=False
-        )
-        opt_s1 = optim.Adam(
-            net_s1.parameters(),
-            lr=lr,
-            #0.002
-            betas=(0.9, 0.999),
-            eps=1e-08,
-            #default
-            weight_decay=0,
-            #0.0005
-            amsgrad=False
-        )
-        opt_s2 = optim.Adam(
-            net_s2.parameters(),
-            lr=lr,
-            #0.002
-            betas=(0.9, 0.999),
-            eps=1e-08,
-            #default
-            weight_decay=0,
-            #0.0005
-            amsgrad=False
-        )
+        else:
+            opt_g = optim.Adam(
+                net_g.parameters(),
+                #lr=0.001,
+                lr=lr,
+                #0.002
+                betas=(0.9, 0.999),
+                eps=1e-08,
+                #default
+                weight_decay=0,
+                #0.0005
+                amsgrad=False
+            )
+            opt_s1 = optim.Adam(
+                net_s1.parameters(),
+                lr=lr,
+                #0.002
+                betas=(0.9, 0.999),
+                eps=1e-08,
+                #default
+                weight_decay=0,
+                #0.0005
+                amsgrad=False
+            )
+            opt_s2 = optim.Adam(
+                net_s2.parameters(),
+                lr=lr,
+                #0.002
+                betas=(0.9, 0.999),
+                eps=1e-08,
+                #default
+                weight_decay=0,
+                #0.0005
+                amsgrad=False
+            )
 
     criterion = nn.BCELoss()
     #criterion_d = Diff2d()
@@ -704,7 +707,9 @@ def get_args():
                         help='scaling method??', dest='scaling_type')
     parser.add_argument('-saveall', '--saveall-epoch', metavar='SA', type=int, nargs='?', default=None,
                         help='epoch before which you save all models', dest='saEpoch')
-    
+    parser.add_argument('-contrain', '--continue-training', metavar='CT', type=bool, nargs='?', default=None,
+                        help='load checkpoint path?', dest='contrain')
+
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -717,14 +722,65 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
-
     net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-    
     net_g.to(device=device)
     net_s1.to(device=device)
     net_s2.to(device=device)
+    if args.contrain != None:
+        checkPoint = torch.load(args.contrain)
+        net_g.load_state_dict(checkPoint['best_g'])
+        net_s1.load_state_dict(checkPoint['best_s1'])
+        net_s2.load_state_dict(checkPoint['best_s2'])
+        optimizer = optim.Adam(model.parameters(), lr=1e-3)
+        opt_g = optim.Adam(
+            net_g.parameters(),
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+            amsgrad=False
+        )
+        opt_s1 = optim.Adam(
+            net_g.parameters(),
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+            amsgrad=False
+        )
+        opt_s2 = optim.Adam(
+            net_g.parameters(),
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+            amsgrad=False
+        )
+        opt_g.load_state_dict(checkPoint['opt_g'])
+        opt_s1.load_state_dict(checkPoint['opt_s1'])
+        opt_s2.load_state_dict(checkPoint['opt_s2'])
+
+        ###to cuda
+        for state in opt_g.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device=device)
+        for state in opt_s1.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device=device)
+        for state in opt_s2.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device=device)
+    else:
+        
+        opt_g = None
+        opt_s1 = None
+        opt_s2 = None
+        
         
     dir_result = './{}'.format(args.out_dir)
     dir_checkpoint = '{}/checkpoint'.format(dir_result)
@@ -757,7 +813,10 @@ if __name__ == '__main__':
                   try_flag=args.try_flag,
                   ssl_flag=args.ssl_flag,
                   scaling_type=args.scaling_type,
-                  saEpoch=args.saEpoch)
+                  saEpoch=args.saEpoch,
+                  opt_g=opt_g,
+                  opt_s1=opt_s1,
+                  opt_s2=opt_s2)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
