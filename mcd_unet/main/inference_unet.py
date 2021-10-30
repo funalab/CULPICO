@@ -11,6 +11,14 @@ import glob
 from skimage import io
 import statistics
 import os
+import re
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
+
 
 def eval_unet(test_list, model=None, net_g=None, net_s=None, use_mcd=False):
     IoU_list = []
@@ -156,7 +164,7 @@ def get_args():
     parser.add_argument('-s', '--segmenter', metavar='S1', type=str, nargs='?', default=None,
                         help='the path of segmenter', dest='path_of_s')
     parser.add_argument('-c', '--checkpoint', metavar='C', type=str, nargs='?', default=None,
-                        help='the path of segmenter', dest='checkpoint')
+                        help='checkpoint dir?', dest='checkpoint')
     
     
     return parser.parse_args()
@@ -168,7 +176,7 @@ if __name__ == '__main__':
     tests = []
     name = "phase"
     #necessary to be absolute path
-    test_files = glob.glob("dataset_smiyaki/testing_data/HeLa/*")
+    test_files = glob.glob("../../dataset_smiyaki/testing_data/HeLa/*")
     for testfile in test_files:
         ph_lab = [0] * 2
         #*set*/
@@ -189,7 +197,7 @@ if __name__ == '__main__':
 
     NIHtests = []
     #necessary to be absolute path
-    test_files = glob.glob("dataset_smiyaki/testing_data/3T3/*")
+    test_files = glob.glob("../../dataset_smiyaki/testing_data/3T3/*")
     for testfile in test_files:
         ph_lab = [0] * 2
         #*set*/
@@ -259,25 +267,38 @@ if __name__ == '__main__':
         dir_result = './eval_{}'.format(args.path_of_model)
     os.makedirs(dir_result, exist_ok=True)
     path_w = f'{dir_result}/evaluation.txt'
+
+    
     
     if args.mcd:
-        """
-        #checkpoint = torch.load(args.path_of_model, map_location='cpu')
-        net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-        #net_g.load_state_dict(checkpoint['best_g'])
-        net_g.load_state_dict(torch.load(args.path_of_g, map_location='cpu'))
-        net_g.eval()
+        checkpointList = sorted(glob.glob(f'./{args.checkpoint}/*'), key=natural_keys )
+        #files = sorted(glob.glob('data/*.jpg'), key=natural_keys)
+        for checkpointPath in checkpointList:
+            #checkpoint = torch.load(args.path_of_model, map_location='cpu')
+            checkpoint = torch.load(checkpointPath, map_location='cpu')
+            net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net_g.load_state_dict(checkpoint['best_g'])
+            #net_g.load_state_dict(torch.load(args.path_of_g, map_location='cpu'))
+            net_g.eval()
         
-        net_s = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-        #net_s.load_state_dict(checkpoint['best_s1'])
-        net_s.load_state_dict(torch.load(args.path_of_s, map_location='cpu'))
-        net_s.eval()
-        HeLa_Dice, HeLa_IoU = eval_unet(tests, net_g=net_g, net_s=net_s, use_mcd=args.mcd)
-        NIH_Dice, NIH_IoU = eval_unet(NIHtests, net_g=net_g, net_s=net_s, use_mcd=args.mcd)
-        HeLa_result, HeLa_merge = segment(seg_HeLa, net_g=net_g, net_s=net_s, use_mcd=args.mcd)
-        NIH_result, NIH_merge = segment(seg_NIH, net_g=net_g, net_s=net_s, use_mcd=args.mcd)
+            net_s = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net_s.load_state_dict(checkpoint['best_s1'])
+            #net_s.load_state_dict(torch.load(args.path_of_s, map_location='cpu'))
+            net_s.eval()
+            HeLa_Dice, HeLa_IoU = eval_unet(tests, net_g=net_g, net_s=net_s, use_mcd=args.mcd)
+            NIH_Dice, NIH_IoU = eval_unet(NIHtests, net_g=net_g, net_s=net_s, use_mcd=args.mcd)
+            #HeLa_result, HeLa_merge = segment(seg_HeLa, net_g=net_g, net_s=net_s, use_mcd=args.mcd)
+            #NIH_result, NIH_merge = segment(seg_NIH, net_g=net_g, net_s=net_s, use_mcd=args.mcd)
+            with open(path_w, mode='a') as f:
+                f.write('checkpoint:{}\n'.format(checkpointPath))
+                f.write('HeLaIoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
+                f.write('NIHIoU : {: .04f} +-{: .04f}\n\n'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU)))
+
+                
         """
+        
         for i in range(200):
+            
             path_g = f'{args.checkpoint}/CP_G_epoch{i+1}.pth'
             path_s = f'{args.checkpoint}/CP_S_epoch{i+1}.pth' 
             net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
@@ -291,6 +312,7 @@ if __name__ == '__main__':
             print('epoch:{}'.format(i+1))
             print('HeLaIoU : {: .04f} +-{: .04f}'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
             print('NIHIoU : {: .04f} +-{: .04f}'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU)))
+        """
     else:
         
         model_path = glob.glob(f"{args.path_of_model}/checkpoint/*")

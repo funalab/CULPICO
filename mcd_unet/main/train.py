@@ -38,7 +38,8 @@ def train_net(net_g,
               large_flag=False,
               try_flag=False,
               ssl_flag=False,
-              scaling_type='normal'):
+              scaling_type='normal',
+              saEpoch=None):
 
     path_w = f"{dir_result}output.txt"
     path_lossList = f"{dir_result}loss_list.pkl"
@@ -579,23 +580,22 @@ def train_net(net_g,
             s_bestepoch = epoch + 1
             #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
             #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-            best_g = net_g.state_dict()
-            best_s1 = net_s1.state_dict()
-            best_s2 = net_s2.state_dict()
-            op_g = opt_g.state_dict()
-            op_s1 = opt_s1.state_dict()
-            op_s2 = opt_s2.state_dict()
-            
-            #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-            #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-            torch.save({
-                'best_g' : best_g,
-                'best_s1' : best_s1,
-                'best_s2' : best_s2,
-                'opt_g' : op_g,
-                'opt_s1' : op_s1,
-                'opt_s2' : op_s2,
-            }, '{}CP_min_dloss_e{}'.format(dir_checkpoint, epoch+1))
+            if saEpoch == None:
+                best_g = net_g.state_dict()
+                best_s1 = net_s1.state_dict()
+                best_s2 = net_s2.state_dict()
+                op_g = opt_g.state_dict()
+                op_s1 = opt_s1.state_dict()
+                op_s2 = opt_s2.state_dict()
+
+                torch.save({
+                    'best_g' : best_g,
+                    'best_s1' : best_s1,
+                    'best_s2' : best_s2,
+                    'opt_g' : op_g,
+                    'opt_s1' : op_s1,
+                    'opt_s2' : op_s2,
+                }, '{}CP_min_segloss_e{}'.format(dir_checkpoint, epoch+1))
             
             
             with open(path_w, mode='a') as f:
@@ -609,8 +609,24 @@ def train_net(net_g,
             with open(path_w, mode='a') as f:
                 f.write('val dis loss is update \n')
 
-            
+        if ( saEpoch != None ) and ( epoch < saEpoch ):
+            best_g = net_g.state_dict()
+            best_s1 = net_s1.state_dict()
+            best_s2 = net_s2.state_dict()
+            op_g = opt_g.state_dict()
+            op_s1 = opt_s1.state_dict()
+            op_s2 = opt_s2.state_dict()
 
+            torch.save({
+                'best_g' : best_g,
+                'best_s1' : best_s1,
+                'best_s2' : best_s2,
+                'opt_g' : op_g,
+                'opt_s1' : op_s1,
+                'opt_s2' : op_s2,
+            }, '{}CP_min_segloss_e{}'.format(dir_checkpoint, epoch+1))
+            
+                
         my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list}
 
         with open(path_lossList, "wb") as tf:
@@ -686,6 +702,8 @@ def get_args():
                         help='ssl threshold?', dest='thresh')
     parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='unet',
                         help='scaling method??', dest='scaling_type')
+    parser.add_argument('-saveall', '--saveall-epoch', metavar='SA', type=int, nargs='?', default=None,
+                        help='epoch before which you save all models', dest='saEpoch')
     
     return parser.parse_args()
 
@@ -738,7 +756,8 @@ if __name__ == '__main__':
                   large_flag=args.large_flag,
                   try_flag=args.try_flag,
                   ssl_flag=args.ssl_flag,
-                  scaling_type=args.scaling_type)
+                  scaling_type=args.scaling_type,
+                  saEpoch=args.saEpoch)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
