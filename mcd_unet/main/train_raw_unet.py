@@ -57,7 +57,7 @@ def train_net(net,
         
     criterion = nn.BCELoss()
 
-    if cell == 'bt474':
+    if cell == 'bt474' or 'shsy5y':
         
         cellDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{cell}'
         #load train images
@@ -175,7 +175,7 @@ def train_net(net,
         count = 0
         train = []
         
-        if cell == 'bt474':
+        if cell == 'bt474' or 'shsy5y':
             train = trains
         else:
             #train画像(phase, label)からランダムクロップしてlistにまとめる
@@ -268,16 +268,16 @@ def train_net(net,
         valiou_list.append(val_iou / len_val)
         if (val_loss / len_val) < min_val_loss:
             min_val_loss = (val_loss / len_val)
-            bestmodel = net.state_dict()
-            bestepoch = epoch + 1
+            #bestmodel = net.state_dict()
+            #bestepoch = epoch + 1
             print('best model is updated !')
 
-        #bestmodel = net.state_dict()
-        #bestepoch = epoch + 1
-        #torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
+        bestmodel = net.state_dict()
+        bestepoch = epoch + 1
+        torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
         print('Checkpoint {}_epoch{}_fk{}_b{} saved !'.format(optimizer_method, bestepoch, first_num_of_kernels, batch_size))
         print('Validation IoU Loss: {}'.format(valiou_list[bestepoch - 1]))
-    torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
+    #torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
     # plot learning curve
     loss_graph = plt.figure()
     plt.plot(range(epochs), trloss_list, 'b-', label='train_loss')

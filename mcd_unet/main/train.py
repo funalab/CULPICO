@@ -42,7 +42,8 @@ def train_net(net_g,
               saEpoch=None,
               opt_g=None,
               opt_s1=None,
-              opt_s2=None):
+              opt_s2=None,
+              skipA=False):
 
     path_w = f"{dir_result}output.txt"
     path_lossList = f"{dir_result}loss_list.pkl"
@@ -122,9 +123,9 @@ def train_net(net_g,
         trains_s = get_img_list(name, source, large_flag)
         trains_t = get_img_list(name, target, large_flag)
 
-        random.seed(0)
-        random.shuffle(trains_s)
-        random.shuffle(trains_t)
+        #random.seed(0)
+        #random.shuffle(trains_s)
+        #random.shuffle(trains_t)
 
         if large_flag:
             n_s = 1
@@ -307,6 +308,7 @@ def train_net(net_g,
         d_epoch_loss_after_A = 0
         d_epoch_loss_after_B = 0
         for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size, source), batch(train_t, batch_size, source))):
+            
             img_s = np.array([i[0] for i in bs]).astype(np.float32)
             mask = np.array([i[1] for i in bs]).astype(np.float32)
             img_t = np.array([i[0] for i in bt]).astype(np.float32)
@@ -316,35 +318,35 @@ def train_net(net_g,
             mask = torch.from_numpy(mask).cuda(device)
             mask_flat = mask.view(-1)
             
-            #process1 ( g, s1 and s2 update )
-            #learning segmentation task 
-            opt_g.zero_grad()
-            opt_s1.zero_grad()
-            opt_s2.zero_grad()
-            loss_s = 0
+            if skipA == False:
+                #process1 ( g, s1 and s2 update )
+                #learning segmentation task 
+                loss_s = 0
+                opt_g.zero_grad()
+                opt_s1.zero_grad()
+                opt_s2.zero_grad()
+                feat_s =  net_g(img_s)
+                mask_pred_s1 = net_s1(*feat_s)
+                mask_pred_s2 = net_s2(*feat_s)
             
-            feat_s =  net_g(img_s)
-            mask_pred_s1 = net_s1(*feat_s)
-            mask_pred_s2 = net_s2(*feat_s)
+                mask_prob_s1 = torch.sigmoid(mask_pred_s1)
+                mask_prob_s2 = torch.sigmoid(mask_pred_s2)
             
-            mask_prob_s1 = torch.sigmoid(mask_pred_s1)
-            mask_prob_s2 = torch.sigmoid(mask_pred_s2)
+                mask_prob_flat_s1 = mask_prob_s1.view(-1)
+                mask_prob_flat_s2 = mask_prob_s2.view(-1)
             
-            mask_prob_flat_s1 = mask_prob_s1.view(-1)
-            mask_prob_flat_s2 = mask_prob_s2.view(-1)
-            
-            loss_s += criterion(mask_prob_flat_s1, mask_flat)
-            loss_s += criterion(mask_prob_flat_s2, mask_flat)
+                loss_s += criterion(mask_prob_flat_s1, mask_flat)
+                loss_s += criterion(mask_prob_flat_s2, mask_flat)
                 
                 
-            loss_s.backward()
+                loss_s.backward()
 
-            opt_g.step()
-            opt_s1.step()
-            opt_s2.step()
+                opt_g.step()
+                opt_s1.step()
+                opt_s2.step()
 
-            #record segmentation loss 
-            s_epoch_loss += loss_s.item()
+                #record segmentation loss 
+                s_epoch_loss += loss_s.item()
 
             
             #process2 (s1 and s2 update )
@@ -707,8 +709,12 @@ def get_args():
                         help='scaling method??', dest='scaling_type')
     parser.add_argument('-saveall', '--saveall-epoch', metavar='SA', type=int, nargs='?', default=None,
                         help='epoch before which you save all models', dest='saEpoch')
-    parser.add_argument('-contrain', '--continue-training', metavar='CT', type=bool, nargs='?', default=None,
+    parser.add_argument('-contrain', '--continue-training', metavar='CT', type=str, nargs='?', default=None,
                         help='load checkpoint path?', dest='contrain')
+    parser.add_argument('-skipA', '--skip-stepA', metavar='SKA', type=bool, nargs='?', default=False,
+                        help='skip StepA?', dest='skipA')
+    
+    
 
     return parser.parse_args()
 
@@ -733,7 +739,7 @@ if __name__ == '__main__':
         net_g.load_state_dict(checkPoint['best_g'])
         net_s1.load_state_dict(checkPoint['best_s1'])
         net_s2.load_state_dict(checkPoint['best_s2'])
-        optimizer = optim.Adam(model.parameters(), lr=1e-3)
+        #optimizer = optim.Adam(model.parameters(), lr=1e-3)
         opt_g = optim.Adam(
             net_g.parameters(),
             lr=args.lr,
@@ -743,7 +749,7 @@ if __name__ == '__main__':
             amsgrad=False
         )
         opt_s1 = optim.Adam(
-            net_g.parameters(),
+            net_s1.parameters(),
             lr=args.lr,
             betas=(0.9, 0.999),
             eps=1e-08,
@@ -751,7 +757,7 @@ if __name__ == '__main__':
             amsgrad=False
         )
         opt_s2 = optim.Adam(
-            net_g.parameters(),
+            net_s2.parameters(),
             lr=args.lr,
             betas=(0.9, 0.999),
             eps=1e-08,
@@ -816,7 +822,8 @@ if __name__ == '__main__':
                   saEpoch=args.saEpoch,
                   opt_g=opt_g,
                   opt_s1=opt_s1,
-                  opt_s2=opt_s2)
+                  opt_s2=opt_s2,
+                  skipA=args.skipA)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')

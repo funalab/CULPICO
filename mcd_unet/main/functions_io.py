@@ -121,7 +121,7 @@ def batch_ver2(iterable, batch_size, cell):
         if t[0].ndim==2:
             rotate_img, ang, fl = random_rotate_image(t[0], return_angle=True)
             rotate_mask = random_rotate_image(t[1], spin=ang, flip=fl)
-            if cell == 'bt474':
+            if cell == 'bt474' or 'shsy5y':
                 tmp_list = random_cropping( rotate_img, rotate_mask, 272, 352 )
                 tmp_list[0] = tmp_list[0].reshape([1, tmp_list[0].shape[-2], tmp_list[0].shape[-1]])
                 tmp_list[1] = tmp_list[1].reshape([1, tmp_list[1].shape[-2], tmp_list[1].shape[-1]])

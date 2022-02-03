@@ -295,7 +295,7 @@ if __name__ == '__main__':
                 f.write('NIHIoU : {: .04f} +-{: .04f}\n\n'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU)))
 
                 
-        """
+    """
         
         for i in range(200):
             
@@ -312,7 +312,7 @@ if __name__ == '__main__':
             print('epoch:{}'.format(i+1))
             print('HeLaIoU : {: .04f} +-{: .04f}'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
             print('NIHIoU : {: .04f} +-{: .04f}'.format(statistics.mean(NIH_IoU), statistics.stdev(NIH_IoU)))
-        """
+       
     else:
         
         model_path = glob.glob(f"{args.path_of_model}/checkpoint/*")
@@ -331,7 +331,7 @@ if __name__ == '__main__':
         NIH_result, NIH_merge = segment(seg_NIH, model=model)
         
         
-    with open(path_w, mode='w') as f:
+    with open(path_w, mode='a') as f:
         #f.write('HeLaDice : {: .04f} +-{: .04f}\n'.format(statistics.mean(HeLa_Dice), statistics.stdev(HeLa_Dice)))
         f.write('HeLaIoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(HeLa_IoU), statistics.stdev(HeLa_IoU)))
         #f.write('NIHDice : {: .04f} +-{: .04f}\n'.format(statistics.mean(NIH_Dice), statistics.stdev(NIH_Dice)))
@@ -341,5 +341,5 @@ if __name__ == '__main__':
     io.imsave(f'{dir_result}/HeLa_merge.tif', HeLa_merge)
     io.imsave(f'{dir_result}/NIH_result.tif', NIH_result)
     io.imsave(f'{dir_result}/NIH_merge.tif', NIH_merge)
-    
+    """
     
