@@ -48,7 +48,7 @@ def train_net(net,
     else:        
         optimizer = optim.Adam(
             net.parameters(),
-            lr=0.0001,
+            lr=0.001,
             betas=(0.9, 0.999),
             eps=1e-08,
             weight_decay=0,
@@ -177,6 +177,7 @@ def train_net(net,
         
         if cell == 'bt474' or 'shsy5y':
             train = trains
+            
         else:
             #train画像(phase, label)からランダムクロップしてlistにまとめる
             for train_img_list in tmp_train:
@@ -306,7 +307,7 @@ def get_args():
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=1,
                         help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.001,
                         help='Learning rate', dest='lr')
     parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
                         help='First num of kernels', dest='first_num_of_kernels')

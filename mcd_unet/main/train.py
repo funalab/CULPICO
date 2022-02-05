@@ -23,7 +23,7 @@ def train_net(net_g,
               device,
               epochs=5,
               batch_size=4,
-              lr=0.1,
+              lr=0.001,
               first_num_of_kernels=64,
               thresh=0.01,
               dir_checkpoint='checkpoint/',
@@ -168,7 +168,7 @@ def train_net(net_g,
         #adjust len(train_s) == len(train_t)
         d = len(trains_s) - len(trains_t)
         trains_t.extend(trains_t[:d])
-
+        
         len_train = len(trains_s)
         
         #load val images
@@ -677,7 +677,7 @@ def get_args():
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
                         help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.001,
                         help='Learning rate', dest='lr')
     parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=32,
                         help='First num of kernels', dest='first_num_of_kernels')

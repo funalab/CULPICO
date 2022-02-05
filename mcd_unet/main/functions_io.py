@@ -440,7 +440,7 @@ def create_trainlist(setList, scaling_type):
         imgSet = [0] * 2
         
         filepathList = glob.glob(f"{setPath}/*")
- 
+        
         for filePath in filepathList:
             
             img = io.imread( filePath )
