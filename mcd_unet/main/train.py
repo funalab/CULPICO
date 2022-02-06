@@ -43,7 +43,8 @@ def train_net(net_g,
               opt_g=None,
               opt_s1=None,
               opt_s2=None,
-              skipA=False):
+              skipA=False,
+              Bssl=False):
 
     path_w = f"{dir_result}output.txt"
     path_lossList = f"{dir_result}loss_list.pkl"
@@ -378,12 +379,23 @@ def train_net(net_g,
             
             loss_s += criterion(mask_prob_flat_s1, mask_flat)
             loss_s += criterion(mask_prob_flat_s2, mask_flat)
+
             
             #loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2)
-            loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-            loss = loss_s - co_B * loss_dis
-            
-
+            if Bssl == True:
+                # use pseudo label in stepB loss
+                pseudo_lab_t1, pseudo_lab_t2, pseudo_dis_loss = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
+                                                                                    T_dis=thresh, device=device)
+                L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1.detach())
+                L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2.detach())
+                loss_dis = pseudo_dis_loss
+                loss = loss_s +  L_seg1 + L_seg2 - co_B * loss_dis
+            else:
+                # normal stepB loss (source segloss - target disloss )
+                loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                loss = loss_s - co_B * loss_dis
+           
+           
             #stepB時点で計算したsegmentation loss
             s_epoch_loss_after_A += loss_s.item()
             d_epoch_loss_after_A += loss_dis.item()
@@ -736,6 +748,8 @@ def get_args():
                         help='load checkpoint path?', dest='contrain')
     parser.add_argument('-skipA', '--skip-stepA', metavar='SKA', type=bool, nargs='?', default=False,
                         help='skip StepA?', dest='skipA')
+    parser.add_argument('-Bssl', '--ssl-stepB', metavar='BSSL', type=bool, nargs='?', default=False,
+                        help='use pseudo label in stepB?', dest='Bssl')
     
     
 
@@ -846,7 +860,8 @@ if __name__ == '__main__':
                   opt_g=opt_g,
                   opt_s1=opt_s1,
                   opt_s2=opt_s2,
-                  skipA=args.skipA)
+                  skipA=args.skipA,
+                  Bssl=args.Bssl)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
