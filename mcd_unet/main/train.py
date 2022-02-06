@@ -337,7 +337,9 @@ def train_net(net_g,
             
                 loss_s += criterion(mask_prob_flat_s1, mask_flat)
                 loss_s += criterion(mask_prob_flat_s2, mask_flat)
-                
+
+                #record segmentation loss 
+                s_epoch_loss += loss_s.item()
                 
                 loss_s.backward()
 
@@ -345,8 +347,7 @@ def train_net(net_g,
                 opt_s1.step()
                 opt_s2.step()
 
-                #record segmentation loss 
-                s_epoch_loss += loss_s.item()
+                
 
             
             #process2 (s1 and s2 update )
@@ -387,7 +388,8 @@ def train_net(net_g,
             s_epoch_loss_after_A += loss_s.item()
             d_epoch_loss_after_A += loss_dis.item()
             A_dis = loss_dis.item()
-            
+            if skipA == True:
+                s_epoch_loss += loss_s.item()
             loss.backward()
 
             opt_s1.step()
@@ -573,11 +575,13 @@ def train_net(net_g,
         val_iou_t1_list.append( val_iou_t1 / len_val_t )
         val_iou_t2_list.append( val_iou_t2 / len_val_t )
 
-        s_best_g = net_g.state_dict()
-        s_best_s = net_s1.state_dict()
+        #s_best_g = net_g.state_dict()
+        #s_best_s = net_s1.state_dict()
         #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
         #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
         
+        # minimum s_loss or d_loss 更新時checkpoint saved 
+        already = False
         if current_val_s_loss < min_val_s_loss:
             min_val_s_loss = current_val_s_loss
             #s_best_g = net_g.state_dict()
@@ -601,6 +605,8 @@ def train_net(net_g,
                     'opt_s1' : op_s1,
                     'opt_s2' : op_s2,
                 }, '{}CP_min_segloss_e{}'.format(dir_checkpoint, epoch+1))
+
+                already = True
             
             
             with open(path_w, mode='a') as f:
@@ -609,6 +615,23 @@ def train_net(net_g,
         if current_val_d_loss < min_val_d_loss:
             min_val_d_loss = current_val_d_loss
 
+            if saEpoch == None and already==False:
+                best_g = net_g.state_dict()
+                best_s1 = net_s1.state_dict()
+                best_s2 = net_s2.state_dict()
+                op_g = opt_g.state_dict()
+                op_s1 = opt_s1.state_dict()
+                op_s2 = opt_s2.state_dict()
+
+                torch.save({
+                    'best_g' : best_g,
+                    'best_s1' : best_s1,
+                    'best_s2' : best_s2,
+                    'opt_g' : op_g,
+                    'opt_s1' : op_s1,
+                    'opt_s2' : op_s2,
+                }, '{}CP_min_disloss_e{}'.format(dir_checkpoint, epoch+1))
+            
             ###model, optimizer save
             
             with open(path_w, mode='a') as f:
@@ -677,9 +700,9 @@ def get_args():
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
                         help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.001,
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
                         help='Learning rate', dest='lr')
-    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=32,
+    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
                         help='First num of kernels', dest='first_num_of_kernels')
     parser.add_argument('-om', '--optimizer-method', metavar='OM', type=str, nargs='?', default='Adam',
                         help='Optimizer method', dest='optimizer_method')
@@ -788,7 +811,7 @@ if __name__ == '__main__':
         opt_s2 = None
         
         
-    dir_result = './{}'.format(args.out_dir)
+    dir_result = './trResult/{}'.format(args.out_dir)
     dir_checkpoint = '{}/checkpoint'.format(dir_result)
     current_graphs = './graphs'
     dir_graphs = '{}/{}'.format(current_graphs, args.out_dir)

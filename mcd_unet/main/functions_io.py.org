@@ -155,7 +155,7 @@ def batch(iterable, batch_size, source):
                 tmp_list[0] = rotate_img.reshape([1, rotate_img.shape[-2], rotate_img.shape[-1]])
                 tmp_list[1] = rotate_mask.reshape([1, rotate_mask.shape[-2], rotate_mask.shape[-1]])
             
-            elif source =='bt474' or 'shsy5y':
+            elif source =='bt474':
                 tmp_list[0] = t[0].reshape([1, t[0].shape[-2], t[0].shape[-1]])
                 tmp_list[1] = t[1].reshape([1, t[1].shape[-2], t[1].shape[-1]])
         else:
@@ -432,7 +432,7 @@ def create_pseudo_label( p1, p2, T_dis, T_object=0.5, device='cpu' ):
 
     return pselab_p1, pselab_p2, loss_dis
 
-def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
+def create_trainlist(setList, scaling_type):
 
     trains = []
     
@@ -446,14 +446,14 @@ def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
             img = io.imread( filePath )
             if 'Phase' in filePath:
                 img = scaling_image(img)
-                if scaling_type == "unet": img = img - np.median(img)
-                if cut == True: img = img[130:390][176:528]
-                imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
+                if scaling_type == "unet":
+                    img = img - np.median(img)
+                imgSet[-2] = img
  
             else:
                 img = img / 255
-                if cut == True: img = img[130:390][176:528]
-                imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
+                imgSet[-1] = img
+ 
         trains.append(imgSet)
 
     return trains
