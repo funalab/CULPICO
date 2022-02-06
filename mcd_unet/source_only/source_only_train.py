@@ -119,13 +119,20 @@ def train_net(net_g,
     min_val_d_loss = 10000.0;
     """
 
-    target = 'shsy5y' if cell == 'bt474' else 'bt474'
-        
+    if cell == 'bt474':
+        target = 'shsy5y'
+        trDir = 'train_and_test'
+    elif cell == 'shsy5y':
+        target = 'bt474'
+        trDir = 'train'
+    
     sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{cell}'
     targetDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{target}'
-        
+
+    
     #load train images
-    trsourceFiles = glob.glob(f'{sourceDir}/train_and_test/*')
+    trsourceFiles = glob.glob(f'{sourceDir}/{trDir}/*')
+    print(trsourceFiles)
     trains_s = create_trainlist( trsourceFiles, scaling_type )
 
     #train: (520, 704)->(560, 784)
@@ -170,7 +177,7 @@ def train_net(net_g,
         count = 0
         #train_s = ids_s['train']
         #val_s = ids_s['val']
-        if cell == 'bt474':
+        if cell == 'bt474' or 'shsy5y':
             #epochごとに(560, 784)から(272, 352) random crop & train_sに格納
             train_s = []
             for train_img_list in trains_s:

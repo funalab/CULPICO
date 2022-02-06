@@ -155,7 +155,7 @@ def batch(iterable, batch_size, source):
                 tmp_list[0] = rotate_img.reshape([1, rotate_img.shape[-2], rotate_img.shape[-1]])
                 tmp_list[1] = rotate_mask.reshape([1, rotate_mask.shape[-2], rotate_mask.shape[-1]])
             
-            elif source =='bt474':
+            elif source =='bt474' or 'shsy5y':
                 tmp_list[0] = t[0].reshape([1, t[0].shape[-2], t[0].shape[-1]])
                 tmp_list[1] = t[1].reshape([1, t[1].shape[-2], t[1].shape[-1]])
         else:
