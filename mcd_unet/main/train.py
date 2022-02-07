@@ -44,7 +44,8 @@ def train_net(net_g,
               opt_s1=None,
               opt_s2=None,
               skipA=False,
-              Bssl=False):
+              Bssl=False,
+              pseConf=0):
 
     path_w = f"{dir_result}output.txt"
     path_lossList = f"{dir_result}loss_list.pkl"
@@ -385,7 +386,7 @@ def train_net(net_g,
             if Bssl == True:
                 # use pseudo label in stepB loss
                 pseudo_lab_t1, pseudo_lab_t2, pseudo_dis_loss = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
-                                                                                    T_dis=thresh, device=device)
+                                                                                    T_dis=thresh, conf=pseConf, device=device)
                 L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1.detach())
                 L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2.detach())
                 loss_dis = pseudo_dis_loss
@@ -429,7 +430,7 @@ def train_net(net_g,
                 #場合によってはloss_dis定数倍も視野
                 if ssl_flag:
                     pseudo_lab_t1, pseudo_lab_t2, pseudo_dis_loss = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
-                                                                                        T_dis=thresh, device=device)
+                                                                                    T_dis=thresh, conf=pseConf, device=device)
                     L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1.detach())
                     L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2.detach())
 
@@ -750,6 +751,8 @@ def get_args():
                         help='skip StepA?', dest='skipA')
     parser.add_argument('-Bssl', '--ssl-stepB', metavar='BSSL', type=bool, nargs='?', default=False,
                         help='use pseudo label in stepB?', dest='Bssl')
+    parser.add_argument('-conf', '--pse-conf', metavar='PSEC', type=float, nargs='?', default=0.0,
+                        help='the confidence of pseudo label?', dest='pseConf')
     
     
 
@@ -861,7 +864,8 @@ if __name__ == '__main__':
                   opt_s1=opt_s1,
                   opt_s2=opt_s2,
                   skipA=args.skipA,
-                  Bssl=args.Bssl)
+                  Bssl=args.Bssl,
+                  pseConf=args.pseConf)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
