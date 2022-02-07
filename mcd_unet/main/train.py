@@ -35,6 +35,7 @@ def train_net(net_g,
               size=128,
               num_k=2,
               co_B=0.1,
+              co_C=1.0,
               large_flag=False,
               try_flag=False,
               ssl_flag=False,
@@ -214,6 +215,7 @@ def train_net(net_g,
     AtoB = []
     BtoC = []
     CtoA = []
+    pseudo_loss_list = []
 
     if large_flag:
         
@@ -302,7 +304,7 @@ def train_net(net_g,
 
         
         #---- Train section
-
+        pseudo_loss = 0
         s_epoch_loss = 0
         s_epoch_loss_after_A = 0
         s_epoch_loss_after_B = 0
@@ -433,14 +435,14 @@ def train_net(net_g,
                                                                                     T_dis=thresh, conf=pseConf, device=device)
                     L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1.detach())
                     L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2.detach())
-
-                    loss = L_seg1 + L_seg2 + pseudo_dis_loss
+                    L_seg = L_seg1 + L_seg2
+                    loss = L_seg + co_C * pseudo_dis_loss
                     
                 else:
                     
                     
                 
-                    loss = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                    loss = co_C * torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
                 
                 if k == 0 :
                         #print('Step B :' , loss_dis.item() / 2)
@@ -466,7 +468,7 @@ def train_net(net_g,
                 opt_s2.zero_grad()
             #record discrepancy loss
             d_epoch_loss += abs(loss_dis.item())
-            
+            pseudo_loss += L_seg.item()
 
             
             count += 1
@@ -476,11 +478,12 @@ def train_net(net_g,
         seg = s_epoch_loss / (len_train/batch_size)
         print('seg : ',seg)
         dis = d_epoch_loss / (len_train/batch_size)    
-        
+
         seg_after_A = s_epoch_loss_after_A / (len_train/batch_size)
         dis_after_A = d_epoch_loss_after_A / (len_train/batch_size)
         seg_after_B = s_epoch_loss_after_B / (len_train/batch_size)
         dis_after_B = d_epoch_loss_after_B / (len_train/batch_size)
+        pseudo_epoch_loss = pseudo_loss / (len_train/batch_size)
         
         with open(path_w, mode='a') as f:
             f.write('epoch {}: seg:{}, dis:{} \n'.format(epoch + 1, seg, dis))
@@ -495,6 +498,7 @@ def train_net(net_g,
         AtoB.append(dis_after_A - dis)
         BtoC.append(dis_after_B - dis_after_A) 
         CtoA.append(dis - dis_after_B)
+        pseudo_loss_list.append(pseudo_epoch_loss)
         #---- Val section
         val_dice = 0
         val_iou_s1 = 0
@@ -570,7 +574,7 @@ def train_net(net_g,
                 val_iou_t2 += iou_loss(mask_bin_2, mask.float(), device).item()
                 
                 loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-                val_d_loss += loss_dis.item()
+                val_d_loss += co_C * loss_dis.item()
                 
             
                 
@@ -668,7 +672,7 @@ def train_net(net_g,
             }, '{}CP_min_segloss_e{}'.format(dir_checkpoint, epoch+1))
             
                 
-        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list}
+        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list, 'pseudo_loss_list': pseudo_loss_list }
 
         with open(path_lossList, "wb") as tf:
             pickle.dump( my_dict, tf )
@@ -704,6 +708,9 @@ def train_net(net_g,
 
     #A_to_B_to_C_grapf
     draw_graph( dir_graphs, 'A_to_B_to_C', epochs, blue_list=BtoC, blue_label='Step B to Step C', red_list=AtoB, red_label='Step A to Step B', green_list=CtoA,  green_label='Step C to Step A', y_label='Δloss' )
+
+    #pseudo loss
+    draw_graph( dir_graphs, 'pseudo_loss', epochs, red_list=pseudo_loss_list,  red_label='train_pseudo_loss' )
     
 
 def get_args():
@@ -733,6 +740,8 @@ def get_args():
                         help='gpu_num?', dest='gpu_num')
     parser.add_argument('-cob', '--co_stepB', type=float, nargs='?', default=0.1,
                         help='the coefficient in B?', dest='co_B')
+    parser.add_argument('-coc', '--co_stepC', type=float, nargs='?', default=1.0,
+                        help='the coefficient in C?', dest='co_C')
     parser.add_argument('-lf', '--large-flag', type=bool, nargs='?', default=False,
                         help='Is img size large?', dest='large_flag')
     parser.add_argument('-try', '--try-flag', type=bool, nargs='?', default=False,
@@ -855,6 +864,7 @@ if __name__ == '__main__':
                   size=args.size,
                   num_k=args.num_k,
                   co_B=args.co_B,
+                  co_C=args.co_C,
                   large_flag=args.large_flag,
                   try_flag=args.try_flag,
                   ssl_flag=args.ssl_flag,
