@@ -216,6 +216,7 @@ def train_net(net_g,
     BtoC = []
     CtoA = []
     pseudo_loss_list = []
+    L_seg = 0
 
     if large_flag:
         
@@ -468,7 +469,9 @@ def train_net(net_g,
                 opt_s2.zero_grad()
             #record discrepancy loss
             d_epoch_loss += abs(loss_dis.item())
-            pseudo_loss += L_seg.item()
+
+            if ssl_flag:
+                pseudo_loss += L_seg.item()
 
             
             count += 1
