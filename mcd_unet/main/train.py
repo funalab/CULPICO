@@ -217,6 +217,7 @@ def train_net(net_g,
     CtoA = []
     pseudo_loss_list = []
     L_seg = 0
+    assigned_list = []
 
     if large_flag:
         
@@ -312,6 +313,7 @@ def train_net(net_g,
         d_epoch_loss = 0
         d_epoch_loss_after_A = 0
         d_epoch_loss_after_B = 0
+        assignedSum = 0
         for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size, source), batch(train_t, batch_size, source))):
             
             img_s = np.array([i[0] for i in bs]).astype(np.float32)
@@ -388,11 +390,11 @@ def train_net(net_g,
             #loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2)
             if Bssl == True:
                 # use pseudo label in stepB loss
-                pseudo_lab_t1, pseudo_lab_t2, pseudo_dis_loss = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
-                                                                                    T_dis=thresh, conf=pseConf, device=device)
-                L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1.detach())
-                L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2.detach())
-                loss_dis = pseudo_dis_loss
+                decide, pseudo_lab, assigend_B = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2, T_dis=thresh, conf=pseConf, device=device)
+                L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
+                L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
+                loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                #assignedSum += assigned 
                 loss = loss_s +  L_seg1 + L_seg2 - co_B * loss_dis
             else:
                 # normal stepB loss (source segloss - target disloss )
@@ -432,17 +434,15 @@ def train_net(net_g,
 
                 #場合によってはloss_dis定数倍も視野
                 if ssl_flag:
-                    pseudo_lab_t1, pseudo_lab_t2, pseudo_dis_loss = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
+                    decide, pseudo_lab, assigned_C = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
                                                                                     T_dis=thresh, conf=pseConf, device=device)
-                    L_seg1 = criterion(mask_prob_flat_t1, pseudo_lab_t1.detach())
-                    L_seg2 = criterion(mask_prob_flat_t2, pseudo_lab_t2.detach())
+                    L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
+                    L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
                     L_seg = L_seg1 + L_seg2
-                    loss = L_seg + co_C * pseudo_dis_loss
+                    loss = L_seg + co_C * torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
                     
                 else:
                     
-                    
-                
                     loss = co_C * torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
                 
                 if k == 0 :
@@ -455,6 +455,8 @@ def train_net(net_g,
                 elif k == (num_k - 1):
                     #print('Step C :' , loss_dis.item() / 2)
                     C_dis = abs(loss.item())
+                    if ssl_flag:
+                        assignedSum += assigned_C 
                 
                 #loss = loss_s + 2 * loss_dis
                 #loss.backward()
@@ -487,6 +489,7 @@ def train_net(net_g,
         seg_after_B = s_epoch_loss_after_B / (len_train/batch_size)
         dis_after_B = d_epoch_loss_after_B / (len_train/batch_size)
         pseudo_epoch_loss = pseudo_loss / (len_train/batch_size)
+        assignedSum_epoch = assignedSum / (len_train/batch_size)
         
         with open(path_w, mode='a') as f:
             f.write('epoch {}: seg:{}, dis:{} \n'.format(epoch + 1, seg, dis))
@@ -502,6 +505,8 @@ def train_net(net_g,
         BtoC.append(dis_after_B - dis_after_A) 
         CtoA.append(dis - dis_after_B)
         pseudo_loss_list.append(pseudo_epoch_loss)
+        assigned_list.append(assignedSum_epoch)
+        
         #---- Val section
         val_dice = 0
         val_iou_s1 = 0
@@ -675,7 +680,7 @@ def train_net(net_g,
             }, '{}CP_min_segloss_e{}'.format(dir_checkpoint, epoch+1))
             
                 
-        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list, 'pseudo_loss_list': pseudo_loss_list }
+        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list, 'pseudo_loss_list': pseudo_loss_list, 'assigned_list': assigned_list }
 
         with open(path_lossList, "wb") as tf:
             pickle.dump( my_dict, tf )
@@ -704,7 +709,7 @@ def train_net(net_g,
     draw_graph( dir_graphs, 'target_IoU', epochs, red_list=val_iou_t1_list,  red_label='t1_IoU', green_list=val_iou_t2_list,  green_label='t2_IoU', y_label='IoU' )
     
     #ABC_s_graph
-    draw_graph( dir_graphs, 'ABC_seg', epochs, blue_list=tr_s_loss_list_B, blue_label='Step B', red_list=tr_s_loss_list, red_label='Step A', green_list=tr_s_loss_list_C,  green_label='Step C', y_label='Δlos' )
+    draw_graph( dir_graphs, 'ABC_seg', epochs, blue_list=tr_s_loss_list_B, blue_label='Step B', red_list=tr_s_loss_list, red_label='Step A', green_list=tr_s_loss_list_C,  green_label='Step C', y_label='Δloss' )
 
     #ABC_d_graph
     draw_graph( dir_graphs, 'ABC_dis', epochs, blue_list=tr_d_loss_list_B, blue_label='Step B', red_list=tr_d_loss_list, red_label='Step A', green_list=tr_d_loss_list_C,  green_label='Step C', y_label='Δloss' )
@@ -714,6 +719,9 @@ def train_net(net_g,
 
     #pseudo loss
     draw_graph( dir_graphs, 'pseudo_loss', epochs, red_list=pseudo_loss_list,  red_label='train_pseudo_loss' )
+
+    # assigned percentage
+    draw_graph( dir_graphs, 'assigned_percentage', epochs, green_list=assigned_list,  green_label='assigned_pseudo_label' )
     
 
 def get_args():

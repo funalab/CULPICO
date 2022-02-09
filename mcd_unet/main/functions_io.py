@@ -428,14 +428,22 @@ def create_pseudo_label( p1, p2, T_dis, T_object=0.5, conf=0, device='cpu' ):
     p_mean = ( p1 + p2 ) / 2
     p_conf = torch.abs( p_mean - T_object )
     dis = torch.abs( p1 - p2 )
+    # 条件を満たすpixelのindex: decide(tuple)
+    decide = torch.where( (dis<T_dis) & (p_conf>conf) )
+    # 対象pixel(decide)にpseudo label( 1 or 0 )付与
+    pseudo_lab = torch.where( p1[decide] > 0.5, torch.tensor(1, dtype=dis.dtype, device=torch.device(device)), torch.tensor(0, dtype=dis.dtype, device=torch.device(device)) )
+    
+    """
     tmp_label = torch.where( p_mean>T_object, torch.tensor(1, dtype=dis.dtype, device=torch.device(device)), torch.tensor(0, dtype=dis.dtype, device=torch.device(device)) )
     pselab_p1 = torch.where( dis<T_dis, tmp_label, p1 )
     pselab_p1 = torch.where( p_conf > conf, pselab_p1, p1 )
     pselab_p2 = torch.where( dis<T_dis, tmp_label, p2 )
     pselab_p2 = torch.where( p_conf > conf, pselab_p2, p2 )
     loss_dis = torch.mean( dis[torch.where( dis>=T_dis )] )
+    """
+    assigned = torch.numel(p1[decide])/torch.numel(p1)
 
-    return pselab_p1, pselab_p2, loss_dis
+    return decide, pseudo_lab, assigned
 
 def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
 
