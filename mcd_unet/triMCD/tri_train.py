@@ -49,7 +49,8 @@ def train_net(net_g,
               skipA=False,
               Bssl=False,
               pseConf=0,
-              co_P=1):
+              co_P=1,
+              tri_dis=True):
 
     path_w = f"{dir_result}output.txt"
     path_lossList = f"{dir_result}loss_list.pkl"
@@ -226,10 +227,12 @@ def train_net(net_g,
     valdice_list = []
     min_val_s_loss = 10000.0;
     min_val_d_loss = 10000.0;
+    min_s0_loss = 10000.0;
     AtoB = []
     BtoC = []
     CtoA = []
     pseudo_loss_list = []
+    s0_loss_list = []
     assigned_list = []
     L_seg = 0
 
@@ -328,6 +331,7 @@ def train_net(net_g,
         d_epoch_loss_after_A = 0
         d_epoch_loss_after_B = 0
         assignedSum =0
+        s0_loss=0
         
         for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size, source), batch(train_t, batch_size, source))):
             
@@ -377,6 +381,7 @@ def train_net(net_g,
             opt_g.zero_grad()
             opt_s1.zero_grad()
             opt_s2.zero_grad()
+            opt_s0.zero_grad()
             loss_s = 0
             
             feat_s = net_g(img_s)
@@ -406,12 +411,12 @@ def train_net(net_g,
             #loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2)
             if Bssl == True:
                 # use pseudo label in stepB loss
-                decide, pseudo_lab, assigend_B = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
+                decide, pseudo_lab, assigned_B = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
                                                                                     T_dis=thresh, conf=pseConf, device=device)
                 L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
                 L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
                 loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-                loss = loss_s + L_seg1 + L_seg2 - co_B * loss_dis
+                loss = loss_s + (L_seg1 + L_seg2)/assigned_B - co_B * loss_dis
             else:
                 # normal stepB loss (source segloss - target disloss )
                 loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
@@ -455,8 +460,20 @@ def train_net(net_g,
                     L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
                     L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
                     L_seg = L_seg1 + L_seg2
-                    loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                    
+                    if tri_dis:
+                        mask_pred_t0 = net_s0(*feat_t)
+                        mask_prob_t0 = torch.sigmoid(mask_pred_t0)
+                        mask_prob_flat_t0 = mask_prob_t0.view(-1)
+                        dis12 = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                        dis01 = torch.mean(torch.abs(mask_prob_flat_t0 - mask_prob_flat_t1))
+                        dis02 = torch.mean(torch.abs(mask_prob_flat_t0 - mask_prob_flat_t2))
+                        loss_dis = dis12 + dis01 + dis02
+                    else:
+                        loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+
                     loss = L_seg + co_C * loss_dis
+                    
                     
                 else:
                 
@@ -484,6 +501,7 @@ def train_net(net_g,
                 opt_g.zero_grad()
                 opt_s1.zero_grad()
                 opt_s2.zero_grad()
+                opt_s0.zero_grad()
             #record discrepancy loss
             d_epoch_loss += abs(loss_dis.item())
 
@@ -494,10 +512,6 @@ def train_net(net_g,
             # process 0
             # sourceLabel, targetPseudoLabelでS0のみ更新
             ### now ###
-            opt_g.zero_grad()
-            opt_s1.zero_grad()
-            opt_s2.zero_grad()
-            loss_s = 0
 
             with torch.no_grad():
                 feat_s = net_g(img_s)
@@ -528,16 +542,28 @@ def train_net(net_g,
             loss_s = criterion(mask_prob_flat_s0, mask_flat)
             
             ### create pseudo label ###
-            decide, pseudo_lab, assigend_0 = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
+            decide, pseudo_lab, assigned_0 = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
                                                                                     T_dis=thresh, conf=pseConf, device=device)
             ### calculate loss only for labeled pixels
             L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
             L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
             L_seg = L_seg1 + L_seg2
             #loss_dis = 
-            loss = loss_s + co_P * L_seg
+            loss = loss_s + co_P * L_seg / assigned_0
+
+            ### s0 update
+
+            loss.backward()
+            opt_s0.step()
+            
+            opt_g.zero_grad()
+            opt_s1.zero_grad()
+            opt_s2.zero_grad()
+            opt_s0.zero_grad()
+            
             pseudo_loss += L_seg.item()
             assignedSum += assigned_0
+            s0_loss += loss.item()
             
             count += 1
             if i%50 == 0:
@@ -553,6 +579,7 @@ def train_net(net_g,
         dis_after_B = d_epoch_loss_after_B / (len_train/batch_size)
         pseudo_epoch_loss = pseudo_loss / (len_train/batch_size)
         assignedSum_epoch = assignedSum / (len_train/batch_size)
+        s0_loss_epoch = s0_loss / (len_train/batch_size)
         
         with open(path_w, mode='a') as f:
             f.write('epoch {}: seg:{}, dis:{} \n'.format(epoch + 1, seg, dis))
@@ -560,6 +587,7 @@ def train_net(net_g,
         tr_s_loss_list.append(seg)
         tr_s_loss_list_B.append(seg_after_A)
         tr_s_loss_list_C.append(seg_after_B)
+        s0_loss_list.append(s0_loss_epoch)
         
         tr_d_loss_list.append(dis)
         tr_d_loss_list_B.append(dis_after_A)
@@ -604,6 +632,7 @@ def train_net(net_g,
 
                 loss_s1 = criterion(mask_prob_flat_s1, mask_flat)
                 loss_s2 = criterion(mask_prob_flat_s2, mask_flat)
+                
                 loss = loss_s1 + loss_s2
 
                 val_s_loss += loss.item()
@@ -678,25 +707,30 @@ def train_net(net_g,
             min_val_s_loss = current_val_s_loss
             #s_best_g = net_g.state_dict()
             #s_best_s = net_s1.state_dict()
-            s_bestepoch = epoch + 1
+            bestepoch = epoch + 1
             #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
             #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
             if saEpoch == None:
                 best_g = net_g.state_dict()
                 best_s1 = net_s1.state_dict()
                 best_s2 = net_s2.state_dict()
+                best_s0 = net_s0.state_dict()
                 op_g = opt_g.state_dict()
                 op_s1 = opt_s1.state_dict()
                 op_s2 = opt_s2.state_dict()
+                op_s0 = opt_s0.state_dict()
+
 
                 torch.save({
                     'best_g' : best_g,
                     'best_s1' : best_s1,
                     'best_s2' : best_s2,
+                    'best_s0' : best_s0,
                     'opt_g' : op_g,
                     'opt_s1' : op_s1,
                     'opt_s2' : op_s2,
-                }, '{}CP_min_segloss_e{}'.format(dir_checkpoint, epoch+1))
+                    'opt_s0' : op_s0,
+                }, '{}CP_minsourceSeg_triTrain_e_{}'.format(dir_checkpoint, bestepoch))
 
                 already = True
             
@@ -704,30 +738,34 @@ def train_net(net_g,
             with open(path_w, mode='a') as f:
                 f.write('val seg loss is update \n')
 
-        if current_val_d_loss < min_val_d_loss:
-            min_val_d_loss = current_val_d_loss
+        if s0_loss_epoch < min_s0_loss:
+            min_s0_loss = current_val_d_loss
 
             if saEpoch == None and already==False:
                 best_g = net_g.state_dict()
                 best_s1 = net_s1.state_dict()
                 best_s2 = net_s2.state_dict()
+                best_s0 = net_s0.state_dict()
                 op_g = opt_g.state_dict()
                 op_s1 = opt_s1.state_dict()
                 op_s2 = opt_s2.state_dict()
+                op_s0 = opt_s0.state_dict()
 
                 torch.save({
                     'best_g' : best_g,
                     'best_s1' : best_s1,
                     'best_s2' : best_s2,
+                    'best_s0' : best_s0,
                     'opt_g' : op_g,
                     'opt_s1' : op_s1,
                     'opt_s2' : op_s2,
-                }, '{}CP_min_disloss_e{}'.format(dir_checkpoint, epoch+1))
-            
+                    'opt_s0' : op_s0,
+                }, '{}CP_mins0LosstriTrain_e_{}'.format(dir_checkpoint, bestepoch))
+                
             ###model, optimizer save
             
             with open(path_w, mode='a') as f:
-                f.write('val dis loss is update \n')
+                f.write('s0 loss is update \n')
 
         if ( saEpoch != None ) and ( epoch < saEpoch ):
             best_g = net_g.state_dict()
@@ -751,7 +789,7 @@ def train_net(net_g,
             }, '{}CP_minsourceSeg_triTrain_e_{}'.format(dir_checkpoint, bestepoch))            
 
             
-        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list, 'pseudo_loss_list': pseudo_loss_list, 'assigned_list': assigned_list }
+        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list, 'pseudo_loss_list': pseudo_loss_list, 'assigned_list': assigned_list, 's0_loss_list':s0_loss_list }
 
         with open(path_lossList, "wb") as tf:
             pickle.dump( my_dict, tf )
@@ -793,6 +831,9 @@ def train_net(net_g,
 
     # assigned percentage
     draw_graph( dir_graphs, 'assigned_percentage', epochs, green_list=assigned_list,  green_label='assigned_pseudo_label' )
+
+    # s0_loss_list
+    draw_graph( dir_graphs, 's0_loss', epochs, red_list=s0_loss_list,  red_label='s0_loss' )
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks',
@@ -845,6 +886,8 @@ def get_args():
                         help='use pseudo label in stepB?', dest='Bssl')
     parser.add_argument('-conf', '--pse-conf', metavar='PSEC', type=float, nargs='?', default=0.0,
                         help='the confidence of pseudo label?', dest='pseConf')
+    parser.add_argument('-tridis', '--triple-discrepancy', metavar='TD', type=bool, nargs='?', default=True,
+                        help='use triple discrepancy in stepB?', dest='tri_dis')
     
     
 
@@ -863,14 +906,18 @@ if __name__ == '__main__':
     net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+    net_s0 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_g.to(device=device)
     net_s1.to(device=device)
     net_s2.to(device=device)
+    net_s0.to(device=device)
     if args.contrain != None:
         checkPoint = torch.load(args.contrain)
         net_g.load_state_dict(checkPoint['best_g'])
         net_s1.load_state_dict(checkPoint['best_s1'])
         net_s2.load_state_dict(checkPoint['best_s2'])
+        #net_s0.load_state_dict(checkPoint['best_s0'])
+        net_s0.load_state_dict(checkPoint['best_s1'])
         #optimizer = optim.Adam(model.parameters(), lr=1e-3)
         opt_g = optim.Adam(
             net_g.parameters(),
@@ -907,7 +954,8 @@ if __name__ == '__main__':
         opt_g.load_state_dict(checkPoint['opt_g'])
         opt_s1.load_state_dict(checkPoint['opt_s1'])
         opt_s2.load_state_dict(checkPoint['opt_s2'])
-        opt_s0.load_state_dict(checkPoint['opt_s0'])
+        #opt_s0.load_state_dict(checkPoint['opt_s0'])
+        opt_s0.load_state_dict(checkPoint['opt_s1'])
 
         ###to cuda
         for state in opt_g.state.values():
@@ -975,7 +1023,8 @@ if __name__ == '__main__':
                   skipA=args.skipA,
                   Bssl=args.Bssl,
                   pseConf=args.pseConf,
-                  co_P=args.co_P)
+                  co_P=args.co_P,
+                  tri_dis=args.tri_dis)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
