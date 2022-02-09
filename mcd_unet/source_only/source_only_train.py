@@ -25,6 +25,7 @@ import pickle
 def train_net(net_g,
               net_s1,
               net_s2,
+              net_s0,
               device,
               epochs=5,
               batch_size=4,
@@ -40,7 +41,11 @@ def train_net(net_g,
               scaling_type='unet',
               opt_g=None,
               opt_s1=None,
-              opt_s2=None
+              opt_s2=None,
+              opt_s0=None,
+              dis_measure=False,
+              co_s=1,
+              tri_train=False,
               ):
 
     path_w = f"{dir_result}output.txt"
@@ -96,6 +101,19 @@ def train_net(net_g,
                 #0.0005
                 amsgrad=False
             )
+            # 三叉trainの場合
+            if tri_train:
+                opt_s0 = optim.Adam(
+                    net_s0.parameters(),
+                    lr=lr,
+                    #0.002
+                    betas=(0.9, 0.999),
+                    eps=1e-08,
+                    #default
+                    weight_decay=0,
+                    #0.0005
+                    amsgrad=False
+                )
 
     criterion = nn.BCELoss()
     name = "phase"
@@ -166,6 +184,7 @@ def train_net(net_g,
     len_train = len(trains_s)
 
     tr_s_loss_list = []
+    tr_d_loss_list = []
     val_s_loss_list = []
     val_d_loss_list = []    
     valdice_list = []
@@ -186,6 +205,7 @@ def train_net(net_g,
         #---- Train section
 
         s_epoch_loss = 0
+        d_epoch_loss = 0
         
         for i, bs in enumerate(batch(train_s, batch_size, cell)):
             img_s = np.array([i[0] for i in bs]).astype(np.float32)
@@ -205,6 +225,12 @@ def train_net(net_g,
             feat_s =  net_g(img_s)
             mask_pred_s1 = net_s1(*feat_s)
             mask_pred_s2 = net_s2(*feat_s)
+            if tri_train:
+                opt_s0.zero_grad()
+                mask_pred_s0 = net_s0(*feat_s)
+                mask_prob_s0 = torch.sigmoid(mask_pred_s0)
+                mask_prob_flat_s0 = mask_prob_s0.view(-1)
+                loss_s0 = criterion(mask_prob_flat_s0, mask_flat)
             
             mask_prob_s1 = torch.sigmoid(mask_pred_s1)
             mask_prob_s2 = torch.sigmoid(mask_pred_s2)
@@ -214,9 +240,14 @@ def train_net(net_g,
             
             loss_s1 = criterion(mask_prob_flat_s1, mask_flat)
             loss_s2 = criterion(mask_prob_flat_s2, mask_flat)
-            loss_s = loss_s1 + loss_s2
 
-            loss_s.backward()
+            if dis_measure:
+                loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                loss_s = loss_s1 + loss_s2 + co_s * loss_dis
+                d_epoch_loss += loss_dis.item 
+            else:
+                loss_s = loss_s1 + loss_s2 if tri_train == False else loss_s1 + loss_s2 + loss_s0 
+                loss_s.backward()
 
             #record segmentation loss 
             s_epoch_loss += loss_s.item()
@@ -224,14 +255,16 @@ def train_net(net_g,
             opt_g.step()
             opt_s1.step()
             opt_s2.step()
+            if tri_train: opt_s0.step()
             
         seg = s_epoch_loss / (len_train/batch_size)
+        dis = d_epoch_loss / (len_train/batch_size)
         
         with open(path_w, mode='a') as f:
             f.write('{} Epoch finished ! Loss: seg:{}\n'.format(epoch + 1, seg))    
         
         tr_s_loss_list.append(seg)
-        
+        tr_d_loss_list.append(dis)
         
         
         #---- Val section
@@ -262,10 +295,17 @@ def train_net(net_g,
                 
                 mask_prob_flat_s1 = mask_prob_s1.view(-1)
                 mask_prob_flat_s2 = mask_prob_s1.view(-1)
-
+                
+                if tri_train:
+                    mask_pred_s0 = net_s0(*feat_s)
+                    mask_prob_s0 = torch.sigmoid(mask_pred_s0)
+                    mask_prob_flat_s0 = mask_prob_s0.view(-1)
+                    loss_s0 = criterion(mask_prob_flat_s0, mask_flat)
+                    
                 loss_s1 = criterion(mask_prob_flat_s1, mask_flat)
                 loss_s2 = criterion(mask_prob_flat_s2, mask_flat)
-                loss = loss_s1 + loss_s2
+                
+                loss = loss_s1 + loss_s2 if tri_train == False else loss_s1 + loss_s2 + loss_s0 
 
                 val_s_loss += loss.item()
 
@@ -307,14 +347,28 @@ def train_net(net_g,
             op_s1 = opt_s1.state_dict()
             op_s2 = opt_s2.state_dict()
             bestepoch = epoch + 1
-            torch.save({
-                'best_g' : best_g,
-                'best_s1' : best_s1,
-                'best_s2' : best_s2,
-                'opt_g' : op_g,
-                'opt_s1' : op_s1,
-                'opt_s2' : op_s2,
-            }, '{}CP_minseg_source_only_e_{}'.format(dir_checkpoint, bestepoch))
+            if tri_train:
+                best_s0 = net_s0.state_dict()
+                op_s0 = opt_s0.state_dict()
+                torch.save({
+                    'best_g' : best_g,
+                    'best_s1' : best_s1,
+                    'best_s2' : best_s2,
+                    'best_s0' : best_s0,
+                    'opt_g' : op_g,
+                    'opt_s1' : op_s1,
+                    'opt_s2' : op_s2,
+                    'opt_s0' : op_s0,
+                }, '{}CP_minSeg_sourceOnly_triTrain_e_{}'.format(dir_checkpoint, bestepoch))
+            else:
+                torch.save({
+                    'best_g' : best_g,
+                    'best_s1' : best_s1,
+                    'best_s2' : best_s2,
+                    'opt_g' : op_g,
+                    'opt_s1' : op_s1,
+                    'opt_s2' : op_s2,
+                }, '{}CP_minseg_source_only_e_{}'.format(dir_checkpoint, bestepoch))
             with open(path_w, mode='a') as f:
                 f.write(' best s model is updated \n')
 
@@ -325,11 +379,12 @@ def train_net(net_g,
         with open(path_lossList, "wb") as tf:
             pickle.dump( my_dict, tf )
 
-    
-    
+            
     # plot learning curve
     # segmentation loss
     draw_graph( dir_graphs, 'so_segmentation_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
+    # source discrepancy loss
+    draw_graph( dir_graphs, 'source_trDisLoss', epochs, blue_list=tr_d_loss_list, blue_label='train' )
     # dice
     draw_graph( dir_graphs, 'dice', epochs, green_list=valdice_list,  green_label='validation_dice' )
     # discrepancy loss
@@ -363,6 +418,12 @@ def get_args():
                         help='load checkpoint path?', dest='contrain')
     parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='unet',
                         help='scaling method??', dest='scaling_type')
+    parser.add_argument('-dismeasure', '--discrepancy-measurement', metavar='DM', type=bool, nargs='?', default=False,
+                        help='discrepancy measurement??', dest='dis_measure')
+    parser.add_argument('-cos', '--coefficient-source-discrepancy', metavar='COS', type=float, default=1,
+                        help='--coefficient-source-discrepancy', dest='co_s')
+    parser.add_argument('-tri', '--tri-train', metavar='TT', type=bool, nargs='?', default=False,
+                        help='tri train mode??', dest='tri_train')
     return parser.parse_args()
 
 
@@ -384,12 +445,19 @@ if __name__ == '__main__':
     net_s1.to(device=device)
     net_s2.to(device=device)
 
+    if args.tri_train:
+        net_s0 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        net_s0.to(device=device)
+    else:
+        net_s0 = None
+    
     if args.contrain != None:
         checkPoint = torch.load(args.contrain)
         net_g.load_state_dict(checkPoint['best_g'])
         net_s1.load_state_dict(checkPoint['best_s1'])
         net_s2.load_state_dict(checkPoint['best_s2'])
         #optimizer = optim.Adam(model.parameters(), lr=1e-3)
+        opt_s0 = None
         opt_g = optim.Adam(
             net_g.parameters(),
             lr=args.lr,
@@ -436,6 +504,7 @@ if __name__ == '__main__':
         opt_g = None
         opt_s1 = None
         opt_s2 = None
+        opt_s0 = None
     
     # faster convolutions, but more memory
     # cudnn.benchmark = True
@@ -451,6 +520,7 @@ if __name__ == '__main__':
         train_net(net_g=net_g,
                   net_s1=net_s1,
                   net_s2=net_s2,
+                  net_s0=net_s0,
                   device=device,
                   epochs=args.epochs,
                   batch_size=args.batchsize,
@@ -467,6 +537,10 @@ if __name__ == '__main__':
                   opt_g=opt_g,
                   opt_s1=opt_s1,
                   opt_s2=opt_s2,
+                  opt_s0=opt_s0,
+                  dis_measure=args.dis_measure,
+                  co_s=args.co_s,
+                  tri_train=False,
                   )
                   #img_scale=args.scale,
                   #val_percent=args.val / 100)
