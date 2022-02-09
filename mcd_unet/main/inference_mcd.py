@@ -236,5 +236,6 @@ if __name__ == '__main__':
         f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
         f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
 
+    io.imsave(f'{dir_imgs}/input.tif', imgSet[-2].reshape(img.shape[-2], img.shape[-1]))
     io.imsave(f'{dir_imgs}/result.tif', img_result)
     io.imsave(f'{dir_imgs}/merge.tif', img_merge)    

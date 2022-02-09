@@ -194,6 +194,13 @@ if __name__ == '__main__':
     testFiles = glob.glob(f'{testDir}/*')
     
     tests = create_trainlist( testFiles, test=1, cut=1 )
+
+    #create the result file
+    dir_result = './infResult/eval_{}_fk{}'.format( args.out_dir, args.first_num_of_kernels )
+    dir_imgs = f'{dir_result}/imgs'
+    os.makedirs( dir_result, exist_ok=True )
+    os.makedirs( dir_imgs, exist_ok=True )
+    path_w = f'{dir_result}/evaluation.txt'
     
     #load image for segmentation
     seg_HeLa = []
@@ -206,24 +213,24 @@ if __name__ == '__main__':
     imgSet = [0] * 2
     for filePath in filepathList:
         img = io.imread( filePath )
+        
         if 'Phase' in filePath:
+            a = img[130:390, 176:528]
+            io.imsave(f'{dir_imgs}/input.tif', a)
             img = scaling_image(img)
             if scaling_type == "unet": img = img - np.median(img)
             if cut == True: img = img[130:390, 176:528]
             imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
- 
+            
         else:
+            a = img[130:390, 176:528]
+            io.imsave(f'{dir_imgs}/correct.tif', a)
             img = img / 255
             if cut == True: img = img[130:390, 176:528]
             imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
     seg_shsy5y.append(imgSet)
 
-    #create the result file
-    dir_result = './infResult/eval_{}_fk{}'.format( args.out_dir, args.first_num_of_kernels )
-    dir_imgs = f'{dir_result}/imgs'
-    os.makedirs( dir_result, exist_ok=True )
-    os.makedirs( dir_imgs, exist_ok=True )
-    path_w = f'{dir_result}/evaluation.txt'
+    
     #net_s_another=net_s2,
     Dice, IoU = eval_unet(tests, net_g=net_g, net_s=net_s1, net_s_another=net_s2, use_mcd=1, logfilePath=path_w)
     
@@ -236,5 +243,6 @@ if __name__ == '__main__':
         f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
         f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
 
+    
     io.imsave(f'{dir_imgs}/result.tif', img_result)
     io.imsave(f'{dir_imgs}/merge.tif', img_merge)    
