@@ -447,12 +447,12 @@ def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
             if 'Phase' in filePath:
                 img = scaling_image(img)
                 if scaling_type == "unet": img = img - np.median(img)
-                if cut == True: img = img[130:390][176:528]
+                if cut == True: img = img[130:390, 176:528]
                 imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
  
             else:
                 img = img / 255
-                if cut == True: img = img[130:390][176:528]
+                if cut == True: img = img[130:390, 176:528]
                 imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
         trains.append(imgSet)
 
