@@ -150,7 +150,7 @@ def train_net(net_g,
     
     #load train images
     trsourceFiles = glob.glob(f'{sourceDir}/{trDir}/*')
-    print(trsourceFiles)
+    #print(trsourceFiles)
     trains_s = create_trainlist( trsourceFiles, scaling_type )
 
     #train: (520, 704)->(560, 784)
@@ -242,12 +242,13 @@ def train_net(net_g,
             loss_s2 = criterion(mask_prob_flat_s2, mask_flat)
 
             if dis_measure:
-                loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                loss_dis = torch.mean(torch.abs(mask_prob_flat_s1 - mask_prob_flat_s2))
                 loss_s = loss_s1 + loss_s2 + co_s * loss_dis
                 d_epoch_loss += loss_dis.item 
             else:
                 loss_s = loss_s1 + loss_s2 if tri_train == False else loss_s1 + loss_s2 + loss_s0 
-                loss_s.backward()
+
+            loss_s.backward()
 
             #record segmentation loss 
             s_epoch_loss += loss_s.item()
