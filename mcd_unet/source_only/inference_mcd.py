@@ -12,7 +12,7 @@ from skimage import io
 import statistics
 import os
 
-def eval_unet(test_list, model=None, net_g=None, net_s=None, use_mcd=False, logfilePath=None):
+def eval_unet(test_list, model=None, net_g=None, net_s=None, net_s_another=None, use_mcd=False, logfilePath=None):
     IoU_list = []
     Dice_list = []
     #現状1枚inference用コード->複数枚mean,std算出に対応させる必要
@@ -27,6 +27,8 @@ def eval_unet(test_list, model=None, net_g=None, net_s=None, use_mcd=False, logf
             if use_mcd:
                 feat = net_g(img)
                 mask = net_s(*feat)
+                if net_s_another != None:
+                    mask_ano = net_s_another(*feat)
             else:
                 mask = model(img)
                 
@@ -39,9 +41,12 @@ def eval_unet(test_list, model=None, net_g=None, net_s=None, use_mcd=False, logf
             ])
         
             mask_prob = tf(mask_prob.cpu())
-
-            #mask_prob_np
             inf = mask_prob.squeeze().cpu().numpy()
+            
+            if net_s_another != None:
+                mask_prob_ano = torch.sigmoid(mask_ano).squeeze(0)
+                mask_prob_ano = tf(mask_prob_ano.cpu())
+                inf = ( inf + mask_prob_ano.squeeze().cpu().numpy() ) / 2
 
         tmp_Dice, tmp_IoU = calc_IoU(inf, image[1][0])
         Dice_list.append(tmp_Dice)
@@ -152,7 +157,7 @@ def merge_images(img_gt: np.ndarray, img_segmented: np.ndarray):
 def get_args():
     parser = argparse.ArgumentParser(description='Inference the UNet',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=32,
+    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
                         help='First num of kernels', dest='first_num_of_kernels')
     #parser.add_argument('-m', '--model', metavar='M', type=str, nargs='?',
                         #help='the path of model', dest='path_of_model')
@@ -179,8 +184,9 @@ if __name__ == '__main__':
     net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s1.load_state_dict( checkPoint['best_s1'] )
     net_s1.eval()
-    #net_s2.load_state_dict( checkPoint['best_s2'] )
-    #net_s2.eval()
+    net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+    net_s2.load_state_dict( checkPoint['best_s2'] )
+    net_s2.eval()
 
     #load test images
     # test images (520, 704) -> (272, 352)  ##(260, 352) -> (272, 352)##
@@ -192,6 +198,25 @@ if __name__ == '__main__':
     #load image for segmentation
     seg_HeLa = []
     seg_NIH = []
+    seg_shsy5y = []
+    imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/shsy5y/test_set_128'
+    filepathList = glob.glob(f'{imgsDir}/*')
+    print(filepathList)
+    cut=1; test=1; scaling_type = "unet"
+    imgSet = [0] * 2
+    for filePath in filepathList:
+        img = io.imread( filePath )
+        if 'Phase' in filePath:
+            img = scaling_image(img)
+            if scaling_type == "unet": img = img - np.median(img)
+            if cut == True: img = img[130:390, 176:528]
+            imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
+ 
+        else:
+            img = img / 255
+            if cut == True: img = img[130:390, 176:528]
+            imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
+    seg_shsy5y.append(imgSet)
 
     #create the result file
     dir_result = './infResult/eval_{}_fk{}'.format( args.out_dir, args.first_num_of_kernels )
@@ -199,14 +224,17 @@ if __name__ == '__main__':
     os.makedirs( dir_result, exist_ok=True )
     os.makedirs( dir_imgs, exist_ok=True )
     path_w = f'{dir_result}/evaluation.txt'
+    #net_s_another=net_s2,
+    Dice, IoU = eval_unet(tests, net_g=net_g, net_s=net_s1, net_s_another=net_s2, use_mcd=1, logfilePath=path_w)
     
-    Dice, IoU = eval_unet(tests, net_g=net_g, net_s=net_s1, use_mcd=1, logfilePath=path_w)
-    
-    #img_result, img_merge = segment(seg_HeLa, net_g=net_g, net_s=net_s1, use_mcd=1)
+    img_result, img_merge = segment(seg_shsy5y, net_g=net_g, net_s=net_s1, use_mcd=1)
     
     with open(path_w, mode='a') as f:
+        for i, filename in enumerate(testFiles):
+            f.write('{}:{}\n'.format( i, filename ))
+            
         f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
         f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
 
-    #io.imsave(f'{dir_imgs}/result.tif', img_result)
-    #io.imsave(f'{dir_imgs}/merge.tif', img_merge)    
+    io.imsave(f'{dir_imgs}/result.tif', img_result)
+    io.imsave(f'{dir_imgs}/merge.tif', img_merge)    
