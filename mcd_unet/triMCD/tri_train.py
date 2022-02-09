@@ -916,8 +916,8 @@ if __name__ == '__main__':
         net_g.load_state_dict(checkPoint['best_g'])
         net_s1.load_state_dict(checkPoint['best_s1'])
         net_s2.load_state_dict(checkPoint['best_s2'])
-        #net_s0.load_state_dict(checkPoint['best_s0'])
-        net_s0.load_state_dict(checkPoint['best_s1'])
+        net_s0.load_state_dict(checkPoint['best_s0'])
+        
         #optimizer = optim.Adam(model.parameters(), lr=1e-3)
         opt_g = optim.Adam(
             net_g.parameters(),
@@ -954,8 +954,8 @@ if __name__ == '__main__':
         opt_g.load_state_dict(checkPoint['opt_g'])
         opt_s1.load_state_dict(checkPoint['opt_s1'])
         opt_s2.load_state_dict(checkPoint['opt_s2'])
-        #opt_s0.load_state_dict(checkPoint['opt_s0'])
-        opt_s0.load_state_dict(checkPoint['opt_s1'])
+        opt_s0.load_state_dict(checkPoint['opt_s0'])
+        #opt_s0.load_state_dict(checkPoint['opt_s1'])
 
         ###to cuda
         for state in opt_g.state.values():

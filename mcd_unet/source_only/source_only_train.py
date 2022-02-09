@@ -541,7 +541,7 @@ if __name__ == '__main__':
                   opt_s0=opt_s0,
                   dis_measure=args.dis_measure,
                   co_s=args.co_s,
-                  tri_train=False,
+                  tri_train=args.tri_train,
                   )
                   #img_scale=args.scale,
                   #val_percent=args.val / 100)
