@@ -50,7 +50,8 @@ def train_net(net_g,
               Bssl=False,
               pseConf=0,
               co_P=1,
-              tri_dis=True):
+              tri_dis=True,
+              s0TargetOnly=False):
 
     path_w = f"{dir_result}output.txt"
     path_lossList = f"{dir_result}loss_list.pkl"
@@ -515,6 +516,8 @@ def train_net(net_g,
 
             with torch.no_grad():
                 feat_s = net_g(img_s)
+
+                """
                 mask_pred_s1 = net_s1(*feat_s)
                 mask_pred_s2 = net_s2(*feat_s)
             
@@ -523,6 +526,7 @@ def train_net(net_g,
             
                 mask_prob_flat_s1 = mask_prob_s1.view(-1)
                 mask_prob_flat_s2 = mask_prob_s2.view(-1)
+                """
 
                 feat_t = net_g(img_t)
                 mask_pred_t1 = net_s1(*feat_t)
@@ -538,17 +542,23 @@ def train_net(net_g,
             mask_pred_s0 = net_s0(*feat_s)
             mask_prob_s0 = torch.sigmoid(mask_pred_s0)
             mask_prob_flat_s0 = mask_prob_s0.view(-1)
+            # s0 target output
+            mask_pred_s0_target = net_s0(*feat_t)
+            mask_prob_s0_target = torch.sigmoid(mask_pred_s0_target)
+            mask_prob_flat_s0_target = mask_prob_s0_target.view(-1)
+            
             # calc source segmentation loss
             loss_s = criterion(mask_prob_flat_s0, mask_flat)
-            
+            # calc target segmentation loss
             ### create pseudo label ###
             decide, pseudo_lab, assigned_0 = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
                                                                                     T_dis=thresh, conf=pseConf, device=device)
+            L_seg = criterion(mask_prob_flat_s0_target[decide], pseudo_lab.detach())
+            
             ### calculate loss only for labeled pixels
-            L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
-            L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
-            L_seg = L_seg1 + L_seg2
-            #loss_dis = 
+            #L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
+            #L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
+            
             loss = loss_s + co_P * L_seg / assigned_0
 
             ### s0 update
@@ -888,6 +898,9 @@ def get_args():
                         help='the confidence of pseudo label?', dest='pseConf')
     parser.add_argument('-tridis', '--triple-discrepancy', metavar='TD', type=bool, nargs='?', default=True,
                         help='use triple discrepancy in stepB?', dest='tri_dis')
+    parser.add_argument('-s0targetonly', '--s0-tr-target-only', metavar='TD', type=bool, nargs='?', default=False,
+                        help='s0 training target data only?', dest='s0TargetOnly')
+    
     
     
 
@@ -1024,7 +1037,8 @@ if __name__ == '__main__':
                   Bssl=args.Bssl,
                   pseConf=args.pseConf,
                   co_P=args.co_P,
-                  tri_dis=args.tri_dis)
+                  tri_dis=args.tri_dis,
+                  s0TargetOnly=args.s0TargetOnly)
                   
     except KeyboardInterrupt:
         #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
