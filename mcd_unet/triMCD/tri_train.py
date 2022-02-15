@@ -749,28 +749,27 @@ def train_net(net_g,
                 f.write('val seg loss is update \n')
 
         if s0_loss_epoch < min_s0_loss:
-            min_s0_loss = current_val_d_loss
+            min_s0_loss = s0_loss_epoch
 
             if saEpoch == None and already==False:
                 best_g = net_g.state_dict()
-                best_s1 = net_s1.state_dict()
-                best_s2 = net_s2.state_dict()
+                #best_s1 = net_s1.state_dict()
+                #best_s2 = net_s2.state_dict()
                 best_s0 = net_s0.state_dict()
-                op_g = opt_g.state_dict()
-                op_s1 = opt_s1.state_dict()
-                op_s2 = opt_s2.state_dict()
-                op_s0 = opt_s0.state_dict()
-
+                #op_g = opt_g.state_dict()
+                #op_s1 = opt_s1.state_dict()
+                #op_s2 = opt_s2.state_dict()
+                #op_s0 = opt_s0.state_dict()
+                #'best_s1' : best_s1,
+                #'best_s2' : best_s2,
+                #'opt_g' : op_g,
+                #'opt_s1' : op_s1,
+                #'opt_s2' : op_s2,
+                #'opt_s0' : op_s0,
                 torch.save({
-                    'best_g' : best_g,
-                    'best_s1' : best_s1,
-                    'best_s2' : best_s2,
+                    'best_g' : best_g,   
                     'best_s0' : best_s0,
-                    'opt_g' : op_g,
-                    'opt_s1' : op_s1,
-                    'opt_s2' : op_s2,
-                    'opt_s0' : op_s0,
-                }, '{}CP_mins0LosstriTrain_e_{}'.format(dir_checkpoint, bestepoch))
+                }, '{}CP_mins0LosstriTrain_e_{}'.format(dir_checkpoint, epoch+1))
                 
             ###model, optimizer save
             

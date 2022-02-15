@@ -151,7 +151,7 @@ def train_net(net_g,
         #len_val_s = len(ids_s['val'])
         #len_val_t = len(ids_t['val'])
 
-    elif source == 'bt474':
+    elif source == 'bt474' or 'shsy5y':
         sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{source}'
         targetDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{target}'
         #load train images
@@ -289,7 +289,7 @@ def train_net(net_g,
             for train_img_list in tmp_train_t:
                 train_t.append( random_cropping( train_img_list[0], train_img_list[1], size, size ) )
 
-        if source == 'bt474':
+        if source == 'bt474' or 'shsy5y':
             train_s = []
             train_t = []
 
