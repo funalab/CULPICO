@@ -142,7 +142,7 @@ def train_net(net_g,
         trDir = 'train_and_test'
     elif cell == 'shsy5y':
         target = 'bt474'
-        trDir = 'train'
+        trDir = 'train_and_test'
     
     sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{cell}'
     targetDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{target}'
