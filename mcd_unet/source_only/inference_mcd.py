@@ -232,7 +232,7 @@ if __name__ == '__main__':
 
     
     #net_s_another=net_s2,
-    Dice, IoU = eval_unet(tests, net_g=net_g, net_s=net_s1, net_s_another=net_s2, use_mcd=1, logfilePath=path_w)
+    Dice, IoU = eval_unet(tests, net_g=net_g, net_s=net_s1, use_mcd=1, logfilePath=path_w)
     
     img_result, img_merge = segment(seg_shsy5y, net_g=net_g, net_s=net_s1, use_mcd=1)
     

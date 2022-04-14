@@ -139,7 +139,8 @@ def train_net(net_g,
 
     if cell == 'bt474':
         target = 'shsy5y'
-        trDir = 'train_and_test'
+        #trDir = 'train_and_test'
+        trDir = 'train'
     elif cell == 'shsy5y':
         target = 'bt474'
         trDir = 'train_and_test'
