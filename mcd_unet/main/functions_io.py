@@ -76,10 +76,10 @@ def iou_loss( input, target, device ):
         s = torch.FloatTensor(1).cuda(device).zero_()
     else:
         s = torch.FloatTensor(1).zero_()
-
+    
     for i, c in enumerate(zip(input, target)):
         s = s + IOULoss().forward(c[0], c[1])
-
+    
     return s / (i + 1)
     
 def random_rotate_image(image: np.ndarray, return_angle: bool = False, spin: int = None, flip: bool = None):
@@ -310,11 +310,13 @@ def mirror_padding( img, h, w ):
 def random_cropping( img, lab, outH, outW ):
 
     #img, labはnp.ndarrayを想定
-
-    trans = transforms.RandomCrop( ( outH, outW ) )
-
-    pil_img = Image.fromarray( img )
-    pil_lab = Image.fromarray( lab )
+    rotate_img, ang, fl = random_rotate_image(img, return_angle=True)
+    rotate_lab = random_rotate_image(lab, spin=ang, flip=fl)
+    
+    #trans = transforms.RandomCrop( ( outH, outW ) )
+    
+    pil_img = Image.fromarray( rotate_img )
+    pil_lab = Image.fromarray( rotate_lab )
 
     i, j, h, w = transforms.RandomCrop.get_params( pil_img, output_size=( outH, outW ) )
 
