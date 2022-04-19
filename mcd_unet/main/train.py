@@ -48,16 +48,20 @@ def train_net(net_g,
               Bssl=False,
               pseConf=0):
 
+    # resultfile & losslist
     path_w = f"{dir_result}output.txt"
     path_lossList = f"{dir_result}loss_list.pkl"
     
-    
-    with open(path_w, mode='w') as f:
-        
-        f.write('first num of kernels:{} \n'.format(first_num_of_kernels))
-        f.write('optimizer method:{} \n'.format(optimizer_method))
+    # recode training conditions
+    with open( path_w, mode='w' ) as f:  
+        f.write( 'first num of kernels:{} \n'.format( first_num_of_kernels ) )
+        f.write( 'optimizer method:{}, learning rate:{} \n'.format( optimizer_method, lr ) )
+        f.write( 'source:{}, target:{} \n'.format( source, target ) )
+        f.write( 'max epoch:{}, batchsize:{} \n'.format( epochs, batch_size ) )
+        f.write( 'ssl_flag:{}, skipA:{} \n'.format( ssl_flag, skipA ) )
+        f.write( 'co_B:{}, co_C:{}, num_k:{},  thresh:{} \n'.format( co_B, co_C, num_k, thresh ) )
 
-    #optimizer set
+    # optimizer set
     if opt_g == None:
         if optimizer_method == 'SGD':
             opt_g = optim.SGD(
@@ -76,7 +80,6 @@ def train_net(net_g,
 
             opt_s2 = optim.SGD(
                 net_s2.parameters(),
-                #lr=0.001,
                 lr=0.0001,
                 momentum=0.9,
                 weight_decay=2e-5
@@ -85,12 +88,9 @@ def train_net(net_g,
         else:
             opt_g = optim.Adam(
                 net_g.parameters(),
-                #lr=0.001,
                 lr=lr,
-                #0.002
                 betas=(0.9, 0.999),
                 eps=1e-08,
-                #default
                 weight_decay=0,
                 #0.0005
                 amsgrad=False
@@ -98,10 +98,8 @@ def train_net(net_g,
             opt_s1 = optim.Adam(
                 net_s1.parameters(),
                 lr=lr,
-                #0.002
                 betas=(0.9, 0.999),
                 eps=1e-08,
-                #default
                 weight_decay=0,
                 #0.0005
                 amsgrad=False
@@ -109,26 +107,19 @@ def train_net(net_g,
             opt_s2 = optim.Adam(
                 net_s2.parameters(),
                 lr=lr,
-                #0.002
                 betas=(0.9, 0.999),
                 eps=1e-08,
-                #default
                 weight_decay=0,
                 #0.0005
                 amsgrad=False
             )
 
     criterion = nn.BCELoss()
-    #criterion_d = Diff2d()
     
     if source == 'HeLa':
         name = "phase"
         trains_s = get_img_list(name, source, large_flag)
         trains_t = get_img_list(name, target, large_flag)
-
-        #random.seed(0)
-        #random.shuffle(trains_s)
-        #random.shuffle(trains_t)
 
         if large_flag:
             n_s = 1
@@ -137,7 +128,6 @@ def train_net(net_g,
             n_s = 124
             n_t = 77
         
-
         #for using 同数data of source と target 
         d = (len(trains_s) - n_s) - (len(trains_t) - n_t)
         ids_s = {'train': trains_s[:-n_s], 'val': trains_s[-n_s:]}
@@ -147,9 +137,7 @@ def train_net(net_g,
         ids_t = {'train': tmp_t_tr, 'val': tmp_t_val }
 
         len_train = len(ids_s['train'])
-        #len_train_t = len(ids_t['train'])
-        #len_val_s = len(ids_s['val'])
-        #len_val_t = len(ids_t['val'])
+        
 
     elif source == 'bt474' or 'shsy5y':
         sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{source}'
@@ -163,20 +151,24 @@ def train_net(net_g,
 
         #train: (520, 704)->(560, 784)
         for k in trains_s:
-            k[0] = mirror_padding(k[0], 560, 784)
-            k[1] = mirror_padding(k[1], 560, 784)
+            k[0] = mirror_padding( k[0], 560, 784 )
+            k[1] = mirror_padding( k[1], 560, 784 )
         for k in trains_t:
-            k[0] = mirror_padding(k[0], 560, 784)
-            k[1] = mirror_padding(k[1], 560, 784)
-        #adjust len(train_s) == len(train_t)
-        d = len(trains_s) - len(trains_t)
-        trains_t.extend(trains_t[:d])
+            k[0] = mirror_padding( k[0], 560, 784 )
+            k[1] = mirror_padding( k[1], 560, 784 )
+        # adjust len(train_s) == len(train_t)
+        if len( trains_s ) > len( trains_t ):
+            d = len( trains_s ) - len( trains_t )
+            trains_t.extend( trains_t[:d] )
+        else:
+            d = len( trains_t ) - len( trains_s )
+            trains_s.extend( trains_s[:d] )
+            
+        len_train = len( trains_s )
         
-        len_train = len(trains_s)
-        
-        #load val images
-        valsourceFiles = glob.glob(f'{sourceDir}/val/*')
-        valtargetFiles = glob.glob(f'{targetDir}/val/*')
+        # load val images
+        valsourceFiles = glob.glob( f'{sourceDir}/val/*' )
+        valtargetFiles = glob.glob( f'{targetDir}/val/*' )
 
         vals_s = create_trainlist( valsourceFiles, scaling_type )
         vals_t = create_trainlist( valtargetFiles, scaling_type )
@@ -184,19 +176,20 @@ def train_net(net_g,
         val_s = []
         val_t = []
         for l in vals_s:
-            l[0] = mirror_padding(l[0], 544, 704)
-            l[1] = mirror_padding(l[1], 544, 704)
+            l[0] = mirror_padding( l[0], 544, 704 )
+            l[1] = mirror_padding( l[1], 544, 704 )
             sepaList = cutting_img( l, 272, 352 )
-            val_s.extend(sepaList)
+            val_s.extend( sepaList )
         for l in vals_t:
-            l[0] = mirror_padding(l[0], 544, 704)
-            l[1] = mirror_padding(l[1], 544, 704)
+            l[0] = mirror_padding( l[0], 544, 704 )
+            l[1] = mirror_padding( l[1], 544, 704 )
             sepaList = cutting_img( l, 272, 352 )
-            val_t.extend(sepaList)
+            val_t.extend( sepaList )
 
-        len_val_s = len(val_s)
-        len_val_t = len(val_t) 
+        len_val_s = len( val_s )
+        len_val_t = len( val_t )
         
+    # s:segmentation d:discrepancy
     tr_s_loss_list = []
     tr_s_loss_list_C = []
     tr_s_loss_list_B = []
@@ -253,12 +246,9 @@ def train_net(net_g,
         val_t = cutting_img( val_t[0], size )
         len_val_s = len( val_s )
         len_val_t = len( val_t )
-        #print( "len of val_s is {}".format( len_val_s ) )
-        #print( "len of val_t is {}".format( len_val_t ) )
         
     else:
         if source == 'HeLa':
-
             train_s = ids_s['train']
             train_t = ids_t['train']
             
@@ -276,10 +266,10 @@ def train_net(net_g,
         print("\ntry run end ...")
         return 0
 
+    # fix the seed
+    random.seed( 0 )
     for epoch in range(epochs):
         count = 0
-        #train_s = ids_s['train']
-        #train_t = ids_t['train']
         if large_flag:
             train_s = []
             train_t = []
@@ -298,9 +288,8 @@ def train_net(net_g,
             for train_img_list in trains_t:
                 train_t.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
 
-            
-        random.shuffle(train_s)
-        random.shuffle(train_t)
+        random.shuffle( train_s )
+        random.shuffle( train_t )
         #val_s = ids_s['val']
         #val_t = ids_t['val']
 
