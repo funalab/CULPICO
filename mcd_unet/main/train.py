@@ -290,19 +290,13 @@ def train_net(net_g,
 
         random.shuffle( train_s )
         random.shuffle( train_t )
-        #val_s = ids_s['val']
-        #val_t = ids_t['val']
-
-        
+                
         #---- Train section
         pseudo_loss = 0
         s_epoch_loss = 0
-        s_epoch_loss_after_A = 0
-        s_epoch_loss_after_B = 0
         d_epoch_loss = 0
-        d_epoch_loss_after_A = 0
-        d_epoch_loss_after_B = 0
         assignedSum = 0
+        
         for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size, source), batch(train_t, batch_size, source))):
             
             img_s = np.array([i[0] for i in bs]).astype(np.float32)
@@ -315,12 +309,12 @@ def train_net(net_g,
             mask_flat = mask.view(-1)
             
             if skipA == False:
-                #process1 ( g, s1 and s2 update )
-                #learning segmentation task 
-                loss_s = 0
+                ### process A ( g, s1 and s2 update ) ###
+                # grad reset
                 opt_g.zero_grad()
                 opt_s1.zero_grad()
                 opt_s2.zero_grad()
+                
                 feat_s =  net_g(img_s)
                 mask_pred_s1 = net_s1(*feat_s)
                 mask_pred_s2 = net_s2(*feat_s)
@@ -330,23 +324,22 @@ def train_net(net_g,
             
                 mask_prob_flat_s1 = mask_prob_s1.view(-1)
                 mask_prob_flat_s2 = mask_prob_s2.view(-1)
-            
+
+                loss_s = 0
                 loss_s += criterion(mask_prob_flat_s1, mask_flat)
                 loss_s += criterion(mask_prob_flat_s2, mask_flat)
 
-                #record segmentation loss 
+                # record segmentation loss 
                 s_epoch_loss += loss_s.item()
-                
-                loss_s.backward()
 
+                # parameter update`
+                loss_s.backward()
                 opt_g.step()
                 opt_s1.step()
                 opt_s2.step()
 
-                
-
-            
-            #process2 (s1 and s2 update )
+            ### processB (s1 and s2 update ) ###
+            # grad reset
             opt_g.zero_grad()
             opt_s1.zero_grad()
             opt_s2.zero_grad()
@@ -376,40 +369,35 @@ def train_net(net_g,
             loss_s += criterion(mask_prob_flat_s2, mask_flat)
 
             
-            #loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2)
+            # loss_dis = criterion_d(mask_prob_flat_t1, mask_prob_flat_t2)
             if Bssl == True:
                 # use pseudo label in stepB loss
                 decide, pseudo_lab, assigend_B = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2, T_dis=thresh, conf=pseConf, device=device)
                 L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
                 L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
                 loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-                #assignedSum += assigned 
+                # assignedSum += assigned 
                 loss = loss_s +  L_seg1 + L_seg2 - co_B * loss_dis
             else:
                 # normal stepB loss (source segloss - target disloss )
                 loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
                 loss = loss_s - co_B * loss_dis
-           
-           
-            #stepB時点で計算したsegmentation loss
-            s_epoch_loss_after_A += loss_s.item()
-            d_epoch_loss_after_A += loss_dis.item()
-            A_dis = loss_dis.item()
+            
             if skipA == True:
                 s_epoch_loss += loss_s.item()
-            loss.backward()
 
+            # parameter update
+            loss.backward()
             opt_s1.step()
             opt_s2.step()
-            #opt_g.step()
 
-            opt_g.zero_grad()
-            opt_s1.zero_grad()
-            opt_s2.zero_grad()
-
-            #process3 ( g update )
-
+            ### processC ( g update ) ###
+            
             for k in range(num_k):
+                
+                opt_g.zero_grad()
+                opt_s1.zero_grad()
+                opt_s2.zero_grad()
                 
                 feat_t = net_g(img_t)
                 mask_pred_t1 = net_s1(*feat_t)
@@ -421,62 +409,41 @@ def train_net(net_g,
                 mask_prob_flat_t1 = mask_prob_t1.view(-1)
                 mask_prob_flat_t2 = mask_prob_t2.view(-1)
 
-                #場合によってはloss_dis定数倍も視野
+                loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                
                 if ssl_flag:
+                    # self supervised learning
                     decide, pseudo_lab, assigned_C = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
                                                                                     T_dis=thresh, conf=pseConf, device=device)
                     L_seg1 = criterion(mask_prob_flat_t1[decide], pseudo_lab.detach())
                     L_seg2 = criterion(mask_prob_flat_t2[decide], pseudo_lab.detach())
                     L_seg = L_seg1 + L_seg2
-                    loss = L_seg + co_C * torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
+                    
+                    loss = L_seg + co_C * loss_dis                        
                     
                 else:
+                    # not self supervised learning
+                    loss = co_C * loss_dis
                     
-                    loss = co_C * torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-                
-                if k == 0 :
-                        #print('Step B :' , loss_dis.item() / 2)
-                    B_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2)).item()
-                    
-                        #C_dis = abs(loss.item())
-                    s_epoch_loss_after_B += loss_s.item()
-                    d_epoch_loss_after_B += abs(loss_dis.item())
-                elif k == (num_k - 1):
-                    #print('Step C :' , loss_dis.item() / 2)
-                    C_dis = abs(loss.item())
-                    if ssl_flag:
-                        assignedSum += assigned_C 
-                
-                #loss = loss_s + 2 * loss_dis
-                #loss.backward()
+                # parameter update
                 loss.backward()
-                
                 opt_g.step()
-                #opt_s1.step()
-                #opt_s2.step()
 
-                opt_g.zero_grad()
-                opt_s1.zero_grad()
-                opt_s2.zero_grad()
             #record discrepancy loss
             d_epoch_loss += abs(loss_dis.item())
-
+            
             if ssl_flag:
                 pseudo_loss += L_seg.item()
-
+                assignedSum += assigned_C 
             
             count += 1
-            if i%50 == 0:
-                print('epoch : {}, iter : {}, A : {}, B : {}, C : {}'.format(epoch+1, i+1, A_dis,  B_dis, C_dis))
-        print('\n')
+            if i%10 == 0:
+                s_epoch_loss_iter = s_epoch_loss / i
+                d_epoch_loss_iter = d_epoch_loss / i
+                print('epoch : {}, iter : {}, seg_loss : {}, dis_loss :{}', epoch+1, i, s_epoch_loss_iter, d_epoch_loss_iter )
+        # epoch loss (seg & dis)
         seg = s_epoch_loss / (len_train/batch_size)
-        print('seg : ',seg)
         dis = d_epoch_loss / (len_train/batch_size)    
-
-        seg_after_A = s_epoch_loss_after_A / (len_train/batch_size)
-        dis_after_A = d_epoch_loss_after_A / (len_train/batch_size)
-        seg_after_B = s_epoch_loss_after_B / (len_train/batch_size)
-        dis_after_B = d_epoch_loss_after_B / (len_train/batch_size)
         pseudo_epoch_loss = pseudo_loss / (len_train/batch_size)
         assignedSum_epoch = assignedSum / (len_train/batch_size)
         
@@ -484,15 +451,7 @@ def train_net(net_g,
             f.write('epoch {}: seg:{}, dis:{} \n'.format(epoch + 1, seg, dis))
             
         tr_s_loss_list.append(seg)
-        tr_s_loss_list_B.append(seg_after_A)
-        tr_s_loss_list_C.append(seg_after_B)
-        
         tr_d_loss_list.append(dis)
-        tr_d_loss_list_B.append(dis_after_A)
-        tr_d_loss_list_C.append(dis_after_B)
-        AtoB.append(dis_after_A - dis)
-        BtoC.append(dis_after_B - dis_after_A) 
-        CtoA.append(dis - dis_after_B)
         pseudo_loss_list.append(pseudo_epoch_loss)
         assigned_list.append(assignedSum_epoch)
         
@@ -674,13 +633,6 @@ def train_net(net_g,
         with open(path_lossList, "wb") as tf:
             pickle.dump( my_dict, tf )
                 
-            
-    dt_now = datetime.datetime.now()
-    y = dt_now.year
-    mon = dt_now.month
-    d = dt_now.day
-    h = dt_now.hour
-    m = dt_now.minute
     
     #segmentation loss graph
     draw_graph( dir_graphs, 'segmentation_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
@@ -688,25 +640,13 @@ def train_net(net_g,
     #discrepancy loss graph
     draw_graph( dir_graphs, 'discrepancy_loss', epochs, blue_list=tr_d_loss_list, blue_label='train', red_list=val_d_loss_list, red_label='validation' )
 
-    #dice graph
-    #draw_graph( dir_graphs, 'dice', epochs, green_list=val_dice_list,  green_label='validation_dice' )
-
     #source iou graph
     draw_graph( dir_graphs, 'source_IoU', epochs, blue_list=val_iou_s1_list,  blue_label='s1_IoU', green_list=val_iou_s2_list,  green_label='s2_IoU', y_label='IoU' )
 
     #target iou graph
     draw_graph( dir_graphs, 'target_IoU', epochs, red_list=val_iou_t1_list,  red_label='t1_IoU', green_list=val_iou_t2_list,  green_label='t2_IoU', y_label='IoU' )
-    
-    #ABC_s_graph
-    draw_graph( dir_graphs, 'ABC_seg', epochs, blue_list=tr_s_loss_list_B, blue_label='Step B', red_list=tr_s_loss_list, red_label='Step A', green_list=tr_s_loss_list_C,  green_label='Step C', y_label='Δloss' )
-
-    #ABC_d_graph
-    draw_graph( dir_graphs, 'ABC_dis', epochs, blue_list=tr_d_loss_list_B, blue_label='Step B', red_list=tr_d_loss_list, red_label='Step A', green_list=tr_d_loss_list_C,  green_label='Step C', y_label='Δloss' )
-
-    #A_to_B_to_C_grapf
-    draw_graph( dir_graphs, 'A_to_B_to_C', epochs, blue_list=BtoC, blue_label='Step B to Step C', red_list=AtoB, red_label='Step A to Step B', green_list=CtoA,  green_label='Step C to Step A', y_label='Δloss' )
-
-    #pseudo loss
+        
+    # pseudo loss
     draw_graph( dir_graphs, 'pseudo_loss', epochs, red_list=pseudo_loss_list,  red_label='train_pseudo_loss' )
 
     # assigned percentage
