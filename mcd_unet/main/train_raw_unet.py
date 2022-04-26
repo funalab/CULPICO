@@ -20,19 +20,18 @@ import random
 import matplotlib.pyplot as plt
 #sys.path.append(os.getcwd())
 
-def train_net(net,
-              device,
-              epochs=5,
-              batch_size=4,
-              lr=0.1,
-              first_num_of_kernels=64,
-              dir_checkpoint='checkpoint/',
-              dir_result='result/',
-              optimizer_method = 'Adam',
-              cell='HeLa',
-              size=128,
-              scaling_type=None,
-              try_flag=False):
+def train_raw_net(net,
+                  device,
+                  epochs=1,
+                  batch_size=16,
+                  lr=0.0001,
+                  first_num_of_kernels=64,
+                  optimizer_method=args.optimizer_method,
+                  cell='bt474'
+                  scaling_type='unet',
+                  dir_checkpoint='checkpoint/',
+                  dir_result='result/',
+                  dir_graphs='graphs/'):
               
     print('first num of kernels:', first_num_of_kernels)
     print('optimizer method:', optimizer_method)

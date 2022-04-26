@@ -702,7 +702,10 @@ def get_args():
                         help='use pseudo label in stepB?', dest='Bssl')
     parser.add_argument('-conf', '--pse-conf', metavar='PSEC', type=float, nargs='?', default=0.0,
                         help='the confidence of pseudo label?', dest='pseConf')
-    
+    parser.add_argument('-raw', '--raw-unet', type=bool, nargs='?', default=0,
+                        help='train raw unet?', dest='raw_mode')
+    parser.add_argument('-cell', type=str, nargs='?', default='bt474',
+                        help='what cell you  use raw unet for?', dest='cell_raw')
     
 
     return parser.parse_args()
@@ -711,116 +714,135 @@ if __name__ == '__main__':
     args = get_args()
     device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
 
-    # Change here to adapt to your data
-    # n_channels=3 for RGB images
-    # n_classes is the number of probabilities you want to get per pixel
-    #   - For 1 class and background, use n_classes=1
-    #   - For 2 classes, use n_classes=1
-    #   - For N > 2 classes, use n_classes=N
-    net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-    net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-    net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-    net_g.to(device=device)
-    net_s1.to(device=device)
-    net_s2.to(device=device)
-    if args.contrain != None:
-        checkPoint = torch.load(args.contrain)
-        net_g.load_state_dict(checkPoint['best_g'])
-        net_s1.load_state_dict(checkPoint['best_s1'])
-        net_s2.load_state_dict(checkPoint['best_s2'])
-        #optimizer = optim.Adam(model.parameters(), lr=1e-3)
-        opt_g = optim.Adam(
-            net_g.parameters(),
-            lr=args.lr,
-            betas=(0.9, 0.999),
-            eps=1e-08,
-            weight_decay=0,
-            amsgrad=False
-        )
-        opt_s1 = optim.Adam(
-            net_s1.parameters(),
-            lr=args.lr,
-            betas=(0.9, 0.999),
-            eps=1e-08,
-            weight_decay=0,
-            amsgrad=False
-        )
-        opt_s2 = optim.Adam(
-            net_s2.parameters(),
-            lr=args.lr,
-            betas=(0.9, 0.999),
-            eps=1e-08,
-            weight_decay=0,
-            amsgrad=False
-        )
-        opt_g.load_state_dict(checkPoint['opt_g'])
-        opt_s1.load_state_dict(checkPoint['opt_s1'])
-        opt_s2.load_state_dict(checkPoint['opt_s2'])
+    if args.raw_mode == False:
+        net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        net_g.to(device=device)
+        net_s1.to(device=device)
+        net_s2.to(device=device)
+        
+        if args.contrain != None:
+            checkPoint = torch.load(args.contrain)
+            net_g.load_state_dict(checkPoint['best_g'])
+            net_s1.load_state_dict(checkPoint['best_s1'])
+            net_s2.load_state_dict(checkPoint['best_s2'])
+            #optimizer = optim.Adam(model.parameters(), lr=1e-3)
+            opt_g = optim.Adam(
+                net_g.parameters(),
+                lr=args.lr,
+                betas=(0.9, 0.999),
+                eps=1e-08,
+                weight_decay=0,
+                amsgrad=False
+            )
+            opt_s1 = optim.Adam(
+                net_s1.parameters(),
+                lr=args.lr,
+                betas=(0.9, 0.999),
+                eps=1e-08,
+                weight_decay=0,
+                amsgrad=False
+            )
+            opt_s2 = optim.Adam(
+                net_s2.parameters(),
+                lr=args.lr,
+                betas=(0.9, 0.999),
+                eps=1e-08,
+                weight_decay=0,
+                amsgrad=False
+            )
+            opt_g.load_state_dict(checkPoint['opt_g'])
+            opt_s1.load_state_dict(checkPoint['opt_s1'])
+            opt_s2.load_state_dict(checkPoint['opt_s2'])
 
-        ###to cuda
-        for state in opt_g.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.to(device=device)
-        for state in opt_s1.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.to(device=device)
-        for state in opt_s2.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.to(device=device)
+            ###to cuda
+            for state in opt_g.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.to(device=device)
+            for state in opt_s1.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.to(device=device)
+            for state in opt_s2.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.to(device=device)
+        else:
+        
+            opt_g = None
+            opt_s1 = None
+            opt_s2 = None
     else:
+        net = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        net.to(device=device)
+    
         
-        opt_g = None
-        opt_s1 = None
-        opt_s2 = None
-        
-        
-    dir_result = './trResult/{}'.format(args.out_dir)
-    dir_checkpoint = '{}/checkpoint'.format(dir_result)
-    current_graphs = './graphs'
+    key = '' if args.raw_mode == False else '_raw'
+    
+    dir_result = './tr{}Result/{}'.format(key, args.out_dir)
+    dir_checkpoint = '{}/checkpoint{}'.format(dir_result, key)
+    current_graphs = f'./graphs{key}'
     dir_graphs = '{}/{}'.format(current_graphs, args.out_dir)
     os.makedirs(dir_result, exist_ok=True)
     os.makedirs(dir_checkpoint, exist_ok=True)
     os.makedirs(current_graphs, exist_ok=True)
     os.makedirs(dir_graphs, exist_ok=True)
+    
     try:
-        train_net(net_g=net_g,
-                  net_s1=net_s1,
-                  net_s2=net_s2,
-                  epochs=args.epochs,
-                  batch_size=args.batchsize,
-                  lr=args.lr,
-                  first_num_of_kernels=args.first_num_of_kernels,
-                  device=device,
-                  thresh=args.thresh,
-                  dir_checkpoint=f'{dir_checkpoint}/',
-                  dir_result=f'{dir_result}/',
-                  dir_graphs=f'{dir_graphs}/',
-                  optimizer_method=args.optimizer_method,
-                  source=args.source,
-                  target=args.target,
-                  size=args.size,
-                  num_k=args.num_k,
-                  co_B=args.co_B,
-                  co_C=args.co_C,
-                  large_flag=args.large_flag,
-                  try_flag=args.try_flag,
-                  ssl_flag=args.ssl_flag,
-                  scaling_type=args.scaling_type,
-                  saEpoch=args.saEpoch,
-                  opt_g=opt_g,
-                  opt_s1=opt_s1,
-                  opt_s2=opt_s2,
-                  skipA=args.skipA,
-                  Bssl=args.Bssl,
-                  pseConf=args.pseConf)
-                  
+        if args.raw_mode == False:
+            train_net(net_g=net_g,
+                      net_s1=net_s1,
+                      net_s2=net_s2,
+                      epochs=args.epochs,
+                      batch_size=args.batchsize,
+                      lr=args.lr,
+                      first_num_of_kernels=args.first_num_of_kernels,
+                      device=device,
+                      thresh=args.thresh,
+                      dir_checkpoint=f'{dir_checkpoint}/',
+                      dir_result=f'{dir_result}/',
+                      dir_graphs=f'{dir_graphs}/',
+                      optimizer_method=args.optimizer_method,
+                      source=args.source,
+                      target=args.target,
+                      size=args.size,
+                      num_k=args.num_k,
+                      co_B=args.co_B,
+                      co_C=args.co_C,
+                      large_flag=args.large_flag,
+                      try_flag=args.try_flag,
+                      ssl_flag=args.ssl_flag,
+                      scaling_type=args.scaling_type,
+                      saEpoch=args.saEpoch,
+                      opt_g=opt_g,
+                      opt_s1=opt_s1,
+                      opt_s2=opt_s2,
+                      skipA=args.skipA,
+                      Bssl=args.Bssl,
+                      pseConf=args.pseConf)
+        else:
+            train_raw_net(
+                net=net,
+                epochs=args.epochs,
+                batch_size=args.batchsize,
+                lr=args.lr,
+                first_num_of_kernels=args.first_num_of_kernels,
+                device=device,
+                optimizer_method=args.optimizer_method,
+                cell=args.cell_raw
+                scaling_type=args.scaling_type,
+                dir_checkpoint=f'{dir_checkpoint}/',
+                dir_result=f'{dir_result}/',
+                dir_graphs=f'{dir_graphs}/'
+            )
+            
     except KeyboardInterrupt:
-        #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
-        
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
+    #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
+    
+    
+    try:
+        sys.exit(0)
+    except SystemExit:
+        os._exit(0)
