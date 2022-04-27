@@ -16,6 +16,7 @@ import random
 import matplotlib.pyplot as plt
 import datetime
 import pickle
+from train_raw_unet import train_raw_net
 
 def train_net(net_g,
               net_s1,
@@ -831,7 +832,7 @@ if __name__ == '__main__':
                 first_num_of_kernels=args.first_num_of_kernels,
                 device=device,
                 optimizer_method=args.optimizer_method,
-                cell=args.cell_raw
+                cell=args.cell_raw,
                 scaling_type=args.scaling_type,
                 dir_checkpoint=f'{dir_checkpoint}/',
                 dir_result=f'{dir_result}/',
@@ -839,10 +840,8 @@ if __name__ == '__main__':
             )
             
     except KeyboardInterrupt:
-    #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
-    
-    
-    try:
-        sys.exit(0)
-    except SystemExit:
-        os._exit(0)
+        #torch.save(net_.state_dict(), 'INTERRUPTED.pth')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
