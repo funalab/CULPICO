@@ -96,7 +96,7 @@ def train_raw_net(net,
     len_train = len( trains )
     len_val = len( val_sepa )
 
-    with open( path_w, mode='w' ) as f:  
+    with open( path_w, mode='a' ) as f:  
         f.write(f"len_train is {len_train}\n")
         f.write(f"len_val is {len_val}\n")
 
@@ -138,7 +138,7 @@ def train_raw_net(net,
             #if i%10 == 0:
                 #print('{}/{} ---- loss: {}'.format(i, int(len_train/batch_size), loss.item()))
 
-        with open( path_w, mode='w' ) as f:  
+        with open( path_w, mode='a' ) as f:  
             f.write('{} Epoch finished ! Loss: {}\n'.format(epoch + 1, epoch_loss / (len_train/batch_size)))
 
         print('{} Epoch finished ! Loss: {}'.format(epoch + 1, epoch_loss / (len_train/batch_size)))
@@ -178,7 +178,7 @@ def train_raw_net(net,
             bestepoch = epoch + 1
             torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
 
-            with open( path_w, mode='w' ) as f:  
+            with open( path_w, mode='a' ) as f:  
                 f.write('best model is updated !\n')
                 f.write('Checkpoint {}_epoch{}_fk{}_b{} saved !\n'.format(optimizer_method, bestepoch, first_num_of_kernels, batch_size))
                 f.write('Validation IoU Loss: {}\n'.format(valiou_list[bestepoch - 1]))
