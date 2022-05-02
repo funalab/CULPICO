@@ -11,6 +11,8 @@ import glob
 from skimage import io
 import statistics
 import os
+from tqdm import tqdm
+import time
 
 ### inference using U-Net model ###
 def inference_unet( test_list, filenames, model, logfilePath=None ):
@@ -22,7 +24,7 @@ def inference_unet( test_list, filenames, model, logfilePath=None ):
             transforms.ToTensor()
         ])
     
-    for i, image in enumerate(test_list):
+    for i, image in enumerate( tqdm( test_list ) ):
 
         img = torch.from_numpy(image[0]).unsqueeze(0).cpu()    
 
@@ -56,7 +58,7 @@ def inference_mcd_unet( test_list, filenames , net_g=None, net_s1=None, net_s2=N
             transforms.ToTensor()
         ])
 
-    for i, image in enumerate(test_list):
+    for i, image in enumerate( tqdm( test_list ) ):
 
         img = torch.from_numpy(image[0]).unsqueeze(0).cpu()
 
@@ -177,7 +179,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
 
-    if raw_mode == False:
+    if args.raw_mode == False:
         checkPoint = torch.load( args.checkpoint, map_location='cpu' )
         net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
         net_g.load_state_dict( checkPoint['best_g'] )
@@ -216,16 +218,22 @@ if __name__ == '__main__':
     #os.makedirs( dir_imgs, exist_ok=True )
     path_w = f'{dir_result}/evaluation.txt'
 
-    if raw_mode == False:
+    print( f'model: {args.checkpoint}' )
+
+    if args.raw_mode == False:
+        print( f'start infernce {args.cell_1}' )
         Dice, IoU = inference_mcd_unet( tests_1, testFiles_1 , net_g=net_g, net_s1=net_s1, net_s2=net_s2, logfilePath=path_w )
         writingResults( args.cell_1, Dice, IoU, path_w )
         if args.cell_2 != None:
+            print( f'start infernce {args.cell_2}' )
             Dice, IoU = inference_mcd_unet( tests_2, testFiles_2 , net_g=net_g, net_s1=net_s1, net_s2=net_s2, logfilePath=path_w )
             writingResults( args.cell_2, Dice, IoU, path_w ) 
     else:
+        print( f'start infernce {args.cell_1}' )
         Dice, IoU = inference_unet( tests_1, testFiles_1, model=model, logfilePath=path_w )
         writingResults( args.cell_2, Dice, IoU, path_w )
         if args.cell_2 != None:
+            print( f'start infernce {args.cell_2}' )
             Dice, IoU = inference_unet( tests_2, testFiles_2, model=model, logfilePath=path_w )
             writingResults( args.cell_2, Dice, IoU, path_w ) 
 
