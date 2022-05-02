@@ -182,20 +182,9 @@ def train_raw_net(net,
                 f.write('best model is updated !\n')
                 f.write('Checkpoint {}_epoch{}_fk{}_b{} saved !\n'.format(optimizer_method, bestepoch, first_num_of_kernels, batch_size))
                 f.write('Validation IoU Loss: {}\n'.format(valiou_list[bestepoch - 1]))
-    
-    loss_graph = plt.figure()
-    plt.plot(range(epochs), trloss_list, 'b-', label='train_loss')
-    plt.plot(range(epochs), valloss_list, 'r-', label='val_loss')
-    plt.legend()
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.grid()
-    loss_graph.savefig('{}loss.pdf'.format(dir_result))
 
-    iou_graph = plt.figure()
-    plt.plot(range(epochs), valiou_list, 'g-', label='val_iou')
-    plt.legend()
-    plt.xlabel('epoch')
-    plt.ylabel('iou')
-    plt.grid()
-    iou_graph.savefig('{}iou.pdf'.format(dir_result))
+
+    draw_graph( dir_graphs, 'Loss', epochs, blue_list=trloss_list, blue_label='train_loss', red_list=valloss_list, r
+ed_label='val_loss' )
+    
+    draw_graph( dir_graphs, 'IoU', epochs, green_list=valiou_list,  green_label='val_IoU', y_label='IoU' )
