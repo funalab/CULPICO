@@ -438,7 +438,7 @@ def train_net(net_g,
                 assignedSum += assigned_C 
             
             count += 1
-            if i%10 == 0:
+            if (i+1)%10 == 0:
                 s_epoch_loss_iter = s_epoch_loss / i
                 d_epoch_loss_iter = d_epoch_loss / i
                 print('epoch : {}, iter : {}, seg_loss : {}, dis_loss :{}', epoch+1, i, s_epoch_loss_iter, d_epoch_loss_iter )
