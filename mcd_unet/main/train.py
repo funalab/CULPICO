@@ -661,7 +661,7 @@ def get_args():
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
                         help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.00001,
                         help='Learning rate', dest='lr')
     parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
                         help='First num of kernels', dest='first_num_of_kernels')
