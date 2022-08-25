@@ -166,7 +166,7 @@ def train_raw_net(net,
                 val_loss += loss.item() 
                 
                 mask_bin = (mask_prob[0] > 0.5).float()
-                val_iou = iou_loss(mask_bin, mask.float(), device).item()
+                val_iou += iou_loss(mask_bin, mask.float(), device).item()
 
         
         valloss_list.append(val_loss / len_val)
@@ -184,7 +184,6 @@ def train_raw_net(net,
                 f.write('Validation IoU Loss: {}\n'.format(valiou_list[bestepoch - 1]))
 
 
-    draw_graph( dir_graphs, 'Loss', epochs, blue_list=trloss_list, blue_label='train_loss', red_list=valloss_list, r
-ed_label='val_loss' )
+    draw_graph( dir_graphs, 'Loss', epochs, blue_list=trloss_list, blue_label='train_loss', red_list=valloss_list, red_label='val_loss' )
     
     draw_graph( dir_graphs, 'IoU', epochs, green_list=valiou_list,  green_label='val_IoU', y_label='IoU' )
