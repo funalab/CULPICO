@@ -175,8 +175,13 @@ def train_raw_net(net,
             min_val_loss = (val_loss / len_val)
 
             bestmodel = net.state_dict()
+            bestopt = optimizer.state_dict()
             bestepoch = epoch + 1
-            torch.save(bestmodel, '{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
+
+            torch.save({
+                'best_net' : bestmodel,
+                'best_opt' : bestopt,
+            },'{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
 
             with open( path_w, mode='a' ) as f:  
                 f.write('best model is updated !\n')

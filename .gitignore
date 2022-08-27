@@ -13,4 +13,10 @@ nohup*
 *Result*
 *Checkpoint*
 *org
+<<<<<<< HEAD
 pseudo_MCD*
+KD_UNet*
+=======
+pseudo_MCD*
+KD_Unet*
+>>>>>>> origin/master
