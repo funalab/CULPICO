@@ -438,7 +438,7 @@ def train_net(net_g,
                 assignedSum += assigned_C 
             
             count += 1
-            if i%10 == 0:
+            if (i+1)%10 == 0:
                 s_epoch_loss_iter = s_epoch_loss / i
                 d_epoch_loss_iter = d_epoch_loss / i
                 print('epoch : {}, iter : {}, seg_loss : {}, dis_loss :{}', epoch+1, i, s_epoch_loss_iter, d_epoch_loss_iter )
@@ -661,7 +661,7 @@ def get_args():
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
                         help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.00001,
                         help='Learning rate', dest='lr')
     parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
                         help='First num of kernels', dest='first_num_of_kernels')
