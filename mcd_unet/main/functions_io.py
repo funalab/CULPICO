@@ -492,9 +492,25 @@ def create_pseudo_label( p1, p2, T_dis, T_object=0.5, conf=0, device='cpu' ):
 
     return decide, pseudo_lab, assigned
 
+def standardize_image(img: np.ndarray):
+    """
+    画像を標準化する。(z-score を求める)
+    :param img: 元画像。
+    :return: 標準化後の画像
+    """
+    img = img.copy()
+    img = img.astype(np.float32)
+    img = (img - img.mean()) / img.std()
+
+    return img
+
+
+
 def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
 
     trains = []
+    max_intensity = 0
+    min_intensity = 2 ** 16 - 1
     
     for setPath in setList:
         imgSet = [0] * 2
@@ -505,15 +521,34 @@ def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
             
             img = io.imread( filePath )
             if 'Phase' in filePath:
-                img = scaling_image(img)
-                if scaling_type == "unet": img = img - np.median(img)
-                if cut == True: img = img[130:390, 176:528]
+                max_intensity = max(max_intensity, img.max())
+                min_intensity = min(min_intensity, img.min())
+                
+                if scaling_type == "unet":
+                    img = scaling_image(img)
+                    img = img - np.median(img)
+                elif scaling_type == "standard":
+                    img = standardize_image(img)
+                elif scaling_type == "normal":
+                    img = scaling_image(img)
+
+                if scaling_type != 'all':
+                    if cut: img = img[130:390, 176:528]
                 imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
- 
+                    
             else:
                 img = img / 255
                 if cut == True: img = img[130:390, 176:528]
                 imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
         trains.append(imgSet)
 
+        if scaling_type == 'all':
+            for train in trains:
+                train[-2] = train[-2].astype(np.float32)
+                try:
+                    with np.errstate(all='raise'):
+                        train[-2] = (train[-2] - min_intensity) / (max_intensity - min_intensity)
+                except (ZeroDivisionError, FloatingPointError):
+                    pass
+        
     return trains
