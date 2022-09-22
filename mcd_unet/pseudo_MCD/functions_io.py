@@ -388,6 +388,51 @@ def merge_images(img_gt: np.ndarray, img_segmented: np.ndarray):
     return result_img.astype(np.uint8), img_segmented.astype(np.uint8) * 255
 
 
+
+def iou_pytorch(outputs: torch.Tensor, labels: torch.Tensor, device):
+    # You can comment out this line if you are passing tensors of equal shape
+    # But if you are passing output from UNet or something it will most probably
+    # be with the BATCH x 1 x H x W shape
+
+    SMOOTH = 1e-6
+
+
+    
+    #outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
+
+    outputs = torch.where( outputs > 0.5, torch.tensor(1, dtype=torch.uint8, device=torch.device(device)), \
+                                            torch.tensor(0, dtype=torch.uint8, device=torch.device(device)) )
+    
+    labels = labels.to(torch.uint8)
+    
+
+    intersection = (outputs & labels).float().sum()  # Will be zero if Truth=0 or Prediction=0
+    union = (outputs | labels).float().sum()         # Will be zzero if both are 0
+    
+    iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
+    
+    #thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
+    
+    #return thresholded  # Or thresholded.mean() if you are interested in average across the batch
+
+    return iou
+
+
+def iou_numpy(outputs: np.array, labels: np.array):
+
+    SMOOTH = 1e-6
+
+    outputs = outputs.squeeze(1)
+    
+    intersection = (outputs & labels).sum((1, 2))
+    union = (outputs | labels).sum((1, 2))
+    
+    iou = (intersection + SMOOTH) / (union + SMOOTH)
+    
+    thresholded = np.ceil(np.clip(20 * (iou - 0.5), 0, 10)) / 10
+    
+    return thresholded  # Or thresholded.mean()
+
 def calc_IoU(inf, mask):
     for i in range(inf.shape[0]):
         for j in range(inf.shape[1]):
@@ -446,18 +491,6 @@ def create_pseudo_label( p1, p2, T_dis, T_object=0.5, conf=0, device='cpu' ):
     assigned = torch.numel(p1[decide])/torch.numel(p1)
 
     return decide, pseudo_lab, assigned
-
-
-def create_uncer_pseudo( p1, p2, T_dis, co_conf=1 ,device='cpu' ):
-    p_dis = torch.abs( p1 - p2 )
-    p_mean = ( p1 + p2 ) / 2
-
-    pseudo_lab = torch.where( p_mean > 0.5, torch.tensor(1, dtype=p_dis.dtype, device=torch.device(device)), torch.tensor(0, dtype=p_dis.dtype, device=torch.device(device)) )
-
-    confidence = 1 - p_dis
-
-    return pseudo_lab, confidence
-
 
 def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
 
