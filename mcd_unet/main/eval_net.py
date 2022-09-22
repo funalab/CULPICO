@@ -12,8 +12,15 @@ from skimage import io
 import statistics
 import os
 
-def eval_unet( device, test_list, model=None, net_g=None, net_s=None, net_s_another=None, use_mcd=False, logfilePath=None):
+def eval_mcd( device, test_list, model=None, net_g=None, net_s=None, net_s_another=None, raw=False, logfilePath=None):
+
     IoU_list = []
+
+    tf = transforms.Compose([
+                transforms.ToPILImage(),
+                #transforms.Resize(h),
+                transforms.ToTensor()
+            ])
 
     for i, image in enumerate(test_list):
 
@@ -21,35 +28,32 @@ def eval_unet( device, test_list, model=None, net_g=None, net_s=None, net_s_anot
         gt = torch.from_numpy(image[1][0]).cuda(device)
     
         with torch.no_grad():
-            if use_mcd:
+            if raw:
+                mask = model(img)
+
+                mask_prob = torch.sigmoid(mask).squeeze(0)
+                mask_prob = tf(mask_prob.cuda(device))
+                inf = mask_prob.squeeze().cuda(device)
+
+            else:
                 feat = net_g(img)
                 mask = net_s(*feat)
-                if net_s_another != None:
-                    mask_ano = net_s_another(*feat)
-            else:
-                mask = model(img)
-                
-            mask_prob = torch.sigmoid(mask).squeeze(0)
-            
-            tf = transforms.Compose([
-                transforms.ToPILImage(),
-                #transforms.Resize(h),
-                transforms.ToTensor()
-            ])
-        
-            mask_prob = tf(mask_prob.cuda(device))
-            inf_s1 = mask_prob.squeeze().cuda(device)
+                mask_ano = net_s_another(*feat)
 
+                mask_prob = torch.sigmoid(mask).squeeze(0)
+                mask_prob_ano = torch.sigmoid(mask_ano).squeeze(0)
 
-            mask_prob_ano = torch.sigmoid(mask_ano).squeeze(0)
-            mask_prob_ano = tf( mask_prob_ano.cuda(device) )
-            inf_s2 = mask_prob_ano.squeeze().cuda(device)
+                mask_prob = tf(mask_prob.cuda(device))
+                mask_prob_ano = tf( mask_prob_ano.cuda(device) )
 
+                inf_s1 = mask_prob.squeeze().cuda(device)
+                inf_s2 = mask_prob_ano.squeeze().cuda(device)
 
-            inf = (inf_s1 + inf_s2) /2
+                inf = (inf_s1 + inf_s2) /2
+
 
         tmp_IoU = iou_pytorch(inf, gt, device)
-        
+
         IoU_list.append(tmp_IoU.to('cpu').item())
 
     if logfilePath != None:
@@ -60,6 +64,7 @@ def eval_unet( device, test_list, model=None, net_g=None, net_s=None, net_s_anot
             f.write('\n')
 
     return IoU_list
+
 
 def get_args():
     parser = argparse.ArgumentParser(description='Inference the UNet',
@@ -76,6 +81,8 @@ def get_args():
                         help='gpu_num?', dest='gpu_num')
     parser.add_argument('-raw', '--raw-unet', type=bool, nargs='?', default=0,
                         help='train raw unet?', dest='raw_mode')
+    parser.add_argument('-scaling', '--scaling-type', type=str, nargs='?', default='unet',
+                        help='scaling type?', dest='scaling_type')
 
     return parser.parse_args()
 
@@ -88,8 +95,12 @@ if __name__ == '__main__':
     if args.raw_mode:
         # load U-Net
         net = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        #print( checkPoint.keys() )
+        net.load_state_dict( checkPoint['best_net'] )
+        #net.load_state_dict( checkPoint )
         net.to(device=device)
         net.eval()
+        net_g=None; net_s1=None; net_s2=None
 
     else:
         # load MCD-U-Net
@@ -109,25 +120,32 @@ if __name__ == '__main__':
     testDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/{args.cell}'
     testFiles = glob.glob(f'{testDir}/*')
     
-    tests = create_trainlist( testFiles, test=1, cut=1 )
-
+    tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
+    
     seg_shsy5y = []
     imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/shsy5y/test_set_128'
     filepathList = glob.glob(f'{imgsDir}/*')
 
-    cut=1; test=1; scaling_type = "unet"
+    cut=1; test=1;
     imgSet = [0] * 2
     for filePath in filepathList:
         img = io.imread( filePath )
         if 'Phase' in filePath:
-            img = scaling_image(img)
-            if scaling_type == "unet": img = img - np.median(img)
-            if cut == True: img = img[130:390, 176:528]
+
+            if args.scaling_type == "unet":
+                img = scaling_image(img)
+                img = img - np.median(img)
+            elif args.scaling_type == "standard":
+                img = standardize_image(img)
+            elif args.scaling_type == "normal":
+                img = scaling_image(img)
+            
+            if cut: img = img[130:390, 176:528]
             imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
  
         else:
             img = img / 255
-            if cut == True: img = img[130:390, 176:528]
+            if cut: img = img[130:390, 176:528]
             imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
     seg_shsy5y.append(imgSet)
 
@@ -138,7 +156,7 @@ if __name__ == '__main__':
     os.makedirs( dir_imgs, exist_ok=True )
     path_w = f'{dir_result}/evaluation.txt'
     #net_s_another=net_s2,
-    IoU = eval_unet( device, tests, net_g=net_g, net_s=net_s1, net_s_another=net_s2, use_mcd=1, logfilePath=path_w)
+    IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
     
     #img_result, img_merge = segment(seg_shsy5y, net_g=net_g, net_s=net_s1, use_mcd=1)
     
