@@ -13,6 +13,7 @@ import statistics
 import os
 
 def eval_mcd( device, test_list, model=None, net_g=None, net_s=None, net_s_another=None, raw=False, logfilePath=None):
+
     IoU_list = []
 
     tf = transforms.Compose([
@@ -52,7 +53,7 @@ def eval_mcd( device, test_list, model=None, net_g=None, net_s=None, net_s_anoth
 
 
         tmp_IoU = iou_pytorch(inf, gt, device)
-        
+
         IoU_list.append(tmp_IoU.to('cpu').item())
 
     if logfilePath != None:
@@ -63,6 +64,7 @@ def eval_mcd( device, test_list, model=None, net_g=None, net_s=None, net_s_anoth
             f.write('\n')
 
     return IoU_list
+
 
 def get_args():
     parser = argparse.ArgumentParser(description='Inference the UNet',
@@ -79,6 +81,8 @@ def get_args():
                         help='gpu_num?', dest='gpu_num')
     parser.add_argument('-raw', '--raw-unet', type=bool, nargs='?', default=0,
                         help='train raw unet?', dest='raw_mode')
+    parser.add_argument('-scaling', '--scaling-type', type=str, nargs='?', default='unet',
+                        help='scaling type?', dest='scaling_type')
 
     return parser.parse_args()
 
@@ -92,8 +96,8 @@ if __name__ == '__main__':
         # load U-Net
         net = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
         #print( checkPoint.keys() )
-        #net.load_state_dict( checkPoint['best_net'] )
-        net.load_state_dict( checkPoint )
+        net.load_state_dict( checkPoint['best_net'] )
+        #net.load_state_dict( checkPoint )
         net.to(device=device)
         net.eval()
         net_g=None; net_s1=None; net_s2=None
@@ -118,25 +122,32 @@ if __name__ == '__main__':
     testDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{args.cell}/cat_train'
     testFiles = glob.glob(f'{testDir}/*')
     
-    tests = create_trainlist( testFiles, test=1, cut=1 )
-
+    tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
+    
     seg_shsy5y = []
     imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/shsy5y/test_set_128'
     filepathList = glob.glob(f'{imgsDir}/*')
 
-    cut=1; test=1; scaling_type = "unet"
+    cut=1; test=1;
     imgSet = [0] * 2
     for filePath in filepathList:
         img = io.imread( filePath )
         if 'Phase' in filePath:
-            img = scaling_image(img)
-            if scaling_type == "unet": img = img - np.median(img)
-            if cut == True: img = img[130:390, 176:528]
+
+            if args.scaling_type == "unet":
+                img = scaling_image(img)
+                img = img - np.median(img)
+            elif args.scaling_type == "standard":
+                img = standardize_image(img)
+            elif args.scaling_type == "normal":
+                img = scaling_image(img)
+            
+            if cut: img = img[130:390, 176:528]
             imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
  
         else:
             img = img / 255
-            if cut == True: img = img[130:390, 176:528]
+            if cut: img = img[130:390, 176:528]
             imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
     seg_shsy5y.append(imgSet)
 
