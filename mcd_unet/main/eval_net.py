@@ -83,6 +83,8 @@ def get_args():
                         help='train raw unet?', dest='raw_mode')
     parser.add_argument('-scaling', '--scaling-type', type=str, nargs='?', default='unet',
                         help='scaling type?', dest='scaling_type')
+    parser.add_argument('-test', '--test-only', type=bool, nargs='?', default=0,
+                        help='eval testset only??', dest='test_only')
 
     return parser.parse_args()
 
@@ -118,8 +120,15 @@ if __name__ == '__main__':
         net_s2.eval()
 
         net=None
+
+    if args.test_only:
+        # eval testset only
+        testDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/{args.cell}'
+    else:
+        # eval all target data
+        testDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{args.cell}/cat_train'
     
-    testDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{args.cell}/cat_train'
+
     testFiles = glob.glob(f'{testDir}/*')
     
     tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
