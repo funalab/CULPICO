@@ -55,14 +55,15 @@ def eval_mcd( device, test_list, model=None, net_g=None, net_s=None, net_s_anoth
         tmp_IoU = iou_pytorch(inf, gt, device)
 
         IoU_list.append(tmp_IoU.to('cpu').item())
-
+    #各画像のIoUを出力
+    """
     if logfilePath != None:
         with open(logfilePath, mode='a') as f:
             f.write('img num, IoU\n')
             for i, imgIoU in enumerate(IoU_list):
                 f.write(f'{i:0>3}, {imgIoU}\n')
             f.write('\n')
-
+    """
     return IoU_list
 
 
@@ -186,8 +187,9 @@ if __name__ == '__main__':
             IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
             
             with open(path_w, mode='a') as f:
-                for i, filename in enumerate(testFiles):
-                    f.write('{}:{}\n'.format( i, filename ))
+                #各精度に対応するファイル名を出力
+                #for i, filename in enumerate(testFiles):
+                #    f.write('{}:{}\n'.format( i, filename ))
                 
                 #f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
                 f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
