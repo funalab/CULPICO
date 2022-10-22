@@ -57,7 +57,7 @@ def eval_mcd( device, test_list, model=None, net_g=None, net_s=None, net_s_anoth
         IoU_list.append(tmp_IoU.to('cpu').item())
 
     if logfilePath != None:
-        with open(logfilePath, mode='w') as f:
+        with open(logfilePath, mode='a') as f:
             f.write('img num, IoU\n')
             for i, imgIoU in enumerate(IoU_list):
                 f.write(f'{i:0>3}, {imgIoU}\n')
@@ -83,8 +83,10 @@ def get_args():
                         help='train raw unet?', dest='raw_mode')
     parser.add_argument('-scaling', '--scaling-type', type=str, nargs='?', default='unet',
                         help='scaling type?', dest='scaling_type')
-    parser.add_argument('-test', '--test-only', type=bool, nargs='?', default=0,
+    parser.add_argument('-test', '--test-only', type=bool, nargs='?', default=1,
                         help='eval testset only??', dest='test_only')
+    parser.add_argument('-all', '--all-cells', type=bool, nargs='?', default=0,
+                        help='inference the model by all cells??', dest='all_cells')
 
     return parser.parse_args()
 
@@ -129,8 +131,7 @@ if __name__ == '__main__':
         testDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{args.cell}/cat_train'
     
 
-    testFiles = glob.glob(f'{testDir}/*')
-    
+    testFiles = sorted( glob.glob(f'{testDir}/*'), key=natural_keys )
     tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
     
     seg_shsy5y = []
@@ -167,17 +168,46 @@ if __name__ == '__main__':
     os.makedirs( dir_imgs, exist_ok=True )
     path_w = f'{dir_result}/evaluation.txt'
     #net_s_another=net_s2,
-    IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
-    
-    #img_result, img_merge = segment(seg_shsy5y, net_g=net_g, net_s=net_s1, use_mcd=1)
-    
-    with open(path_w, mode='a') as f:
-        for i, filename in enumerate(testFiles):
-            f.write('{}:{}\n'.format( i, filename ))
-            
-        #f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
-        f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
 
-    #io.imsave(f'{dir_imgs}/input.tif', imgSet[-2].reshape(img.shape[-2], img.shape[-1]))
-    #io.imsave(f'{dir_imgs}/result.tif', img_result)
-    #io.imsave(f'{dir_imgs}/merge.tif', img_merge)
+    if args.all_cells:
+        with open(path_w, mode='w') as f:
+            f.write(f'inference all cells, model:{args.checkpoint}\n')
+
+        cell_list = ['a172', 'bt474', 'bv2', 'huh7', 'mcf7', 'shsy5y', 'skbr3', 'skov3']
+        testDir = '/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data'
+
+        for cell_name in cell_list:
+            with open(path_w, mode='a') as f:
+                f.write(f'----inference {cell_name}----\n')
+
+            testFiles = sorted( glob.glob(f'{testDir}/{cell_name}/*'), key=natural_keys )
+            tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
+
+            IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+            
+            with open(path_w, mode='a') as f:
+                for i, filename in enumerate(testFiles):
+                    f.write('{}:{}\n'.format( i, filename ))
+                
+                #f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
+                f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+
+    else:
+        with open(path_w, mode='w') as f:
+            f.write(f'inference single cell({args.cell}, \n model:{args.checkpoint})\n')
+        testFiles = sorted( glob.glob(f'{testDir}/*'), key=natural_keys )
+        tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
+        IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+        
+        #img_result, img_merge = segment(seg_shsy5y, net_g=net_g, net_s=net_s1, use_mcd=1)
+        
+        with open(path_w, mode='a') as f:
+            for i, filename in enumerate(testFiles):
+                f.write('{}:{}\n'.format( i, filename ))
+                
+            #f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
+            f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+
+        #io.imsave(f'{dir_imgs}/input.tif', imgSet[-2].reshape(img.shape[-2], img.shape[-1]))
+        #io.imsave(f'{dir_imgs}/result.tif', img_result)
+        #io.imsave(f'{dir_imgs}/merge.tif', img_merge)

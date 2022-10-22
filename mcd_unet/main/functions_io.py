@@ -16,8 +16,13 @@ from torchvision import transforms
 import random
 from torchvision.transforms import functional as tvf
 import copy
+import re
 
+def atoi(text):
+    return int(text) if text.isdigit() else text
 
+def natural_keys(text):
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
 class DiceCoeff(Function):
     """Dice coeff for individual examples"""
