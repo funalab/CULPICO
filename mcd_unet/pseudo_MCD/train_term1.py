@@ -461,13 +461,18 @@ def get_args():
                         help='retrain main network?', dest='fromterm2')
     parser.add_argument('-pseudo', type=int, nargs='?', default=0,
                         help='0:normal, 1:uncertainty from discrepancy, 3:distance map', dest='pseudo_mode')
+    parser.add_argument('-preenco', type=int, nargs='?', default=1,
+                        help='use pretrain encoder?', dest='pre_enco')
     
 
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
-    device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu_num}'
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    #device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
 
     
     net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
@@ -486,7 +491,8 @@ if __name__ == '__main__':
     net_g.load_state_dict(checkPoint['best_g'])
     net_s1.load_state_dict(checkPoint['best_s1'])
     net_s2.load_state_dict(checkPoint['best_s2'])
-    net_g_main.load_state_dict(checkPoint['best_g'])
+    if args.pre_enco:
+        net_g_main.load_state_dict(checkPoint['best_g'])
     #optimizer = optim.Adam(model.parameters(), lr=1e-3)
     opt_g = optim.Adam(
         net_g.parameters(),
@@ -537,7 +543,8 @@ if __name__ == '__main__':
     opt_g.load_state_dict(checkPoint['opt_g'])
     opt_s1.load_state_dict(checkPoint['opt_s1'])
     opt_s2.load_state_dict(checkPoint['opt_s2'])
-    opt_g_main.load_state_dict(checkPoint['opt_g'])
+    if args.pre_enco:
+        opt_g_main.load_state_dict(checkPoint['opt_g'])
 
     
     
@@ -554,10 +561,11 @@ if __name__ == '__main__':
         for k, v in state.items():
             if isinstance(v, torch.Tensor):
                 state[k] = v.to(device=device)
-    for state in opt_g_main.state.values():
-        for k, v in state.items():
-            if isinstance(v, torch.Tensor):
-                state[k] = v.to(device=device)
+    if args.pre_enco:
+        for state in opt_g_main.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device=device)
         
     key = '' if args.raw_mode == False else '_raw'
     

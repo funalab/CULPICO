@@ -517,3 +517,13 @@ def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
         trains.append(imgSet)
 
     return trains
+
+def create_uncer_pseudo( p1, p2, T_dis, co_conf=1 ,device='cpu' ):
+    p_dis = torch.abs( p1 - p2 )
+    p_mean = ( p1 + p2 ) / 2
+
+    pseudo_lab = torch.where( p_mean > 0.5, torch.tensor(1, dtype=p_dis.dtype, device=torch.device(device)), torch.tensor(0, dtype=p_dis.dtype, device=torch.device(device)) )
+
+    confidence = 1 - p_dis
+
+    return pseudo_lab, confidence
