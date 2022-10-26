@@ -476,7 +476,10 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu_num}'
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    #device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
 
     if args.raw_mode == False:
         net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
