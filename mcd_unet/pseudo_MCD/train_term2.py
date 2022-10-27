@@ -21,8 +21,8 @@ from train_raw_unet import train_raw_net
 def train_net(net_g,
               net_s1,
               net_s2,
-              net_s_main,
               net_g_main,
+              net_s_main,
               device,
               epochs=5,
               batch_size=4,
@@ -121,78 +121,52 @@ def train_net(net_g,
 
     criterion = nn.BCELoss()
     
-    if source == 'HeLa':
-        name = "phase"
-        trains_s = get_img_list(name, source, large_flag)
-        trains_t = get_img_list(name, target, large_flag)
-
-        if large_flag:
-            n_s = 1
-            n_t = 1
-        else:
-            n_s = 124
-            n_t = 77
-        
-        #for using 同数data of source と target 
-        d = (len(trains_s) - n_s) - (len(trains_t) - n_t)
-        ids_s = {'train': trains_s[:-n_s], 'val': trains_s[-n_s:]}
-        tmp_t_tr = trains_t[:-n_t]
-        tmp_t_val = trains_t[-n_t:]
-        tmp_t_tr.extend(tmp_t_tr[:d])
-        ids_t = {'train': tmp_t_tr, 'val': tmp_t_val }
-
-        len_train = len(ids_s['train'])
+    
         
 
-    elif source == 'bt474' or 'shsy5y':
-        sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{source}'
-        targetDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{target}'
-        #load train images
-        trsourceFiles = glob.glob(f'{sourceDir}/train_and_test/*')
-        trtargetFiles = glob.glob(f'{targetDir}/train/*')
+    
+    sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{source}'
+    targetDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{target}'
+    #load train images
+    #trsourceFiles = glob.glob(f'{sourceDir}/train_and_test/*')
+    #trtargetFiles = glob.glob(f'{targetDir}/train/*')
+    trsourceFiles = glob.glob(f'{sourceDir}/cat_train/*')
+    trtargetFiles = glob.glob(f'{targetDir}/cat_train/*')
+    
+    trains_s = create_trainlist( trsourceFiles, scaling_type )
+    trains_t = create_trainlist( trtargetFiles, scaling_type )
 
-        trains_s = create_trainlist( trsourceFiles, scaling_type )
-        trains_t = create_trainlist( trtargetFiles, scaling_type )
-
-        #train: (520, 704)->(560, 784)
-        for k in trains_s:
-            k[0] = mirror_padding( k[0], 560, 784 )
-            k[1] = mirror_padding( k[1], 560, 784 )
-        for k in trains_t:
-            k[0] = mirror_padding( k[0], 560, 784 )
-            k[1] = mirror_padding( k[1], 560, 784 )
-        # adjust len(train_s) == len(train_t)
-        if len( trains_s ) > len( trains_t ):
-            d = len( trains_s ) - len( trains_t )
-            trains_t.extend( trains_t[:d] )
-        else:
-            d = len( trains_t ) - len( trains_s )
-            trains_s.extend( trains_s[:d] )
+    #train: (520, 704)->(560, 784)
+    for k in trains_s:
+        k[0] = mirror_padding( k[0], 560, 784 )
+        k[1] = mirror_padding( k[1], 560, 784 )
+    for k in trains_t:
+        k[0] = mirror_padding( k[0], 560, 784 )
+        k[1] = mirror_padding( k[1], 560, 784 )
+    # adjust len(train_s) == len(train_t)
+    if len( trains_s ) > len( trains_t ):
+        d = len( trains_s ) - len( trains_t )
+        trains_t.extend( trains_t[:d] )
+    else:
+        d = len( trains_t ) - len( trains_s )
+        trains_s.extend( trains_s[:d] )
             
-        len_train = len( trains_s )
+    len_train = len( trains_s )
         
-        # load val images
-        valsourceFiles = glob.glob( f'{sourceDir}/val/*' )
-        valtargetFiles = glob.glob( f'{targetDir}/val/*' )
+    # load val images
+    valtargetFiles = glob.glob( f'{targetDir}/val/*' )
 
-        vals_s = create_trainlist( valsourceFiles, scaling_type )
-        vals_t = create_trainlist( valtargetFiles, scaling_type )
+    vals_t = create_trainlist( valtargetFiles, scaling_type )
 
-        val_s = []
-        val_t = []
-        for l in vals_s:
-            l[0] = mirror_padding( l[0], 544, 704 )
-            l[1] = mirror_padding( l[1], 544, 704 )
-            sepaList = cutting_img( l, 272, 352 )
-            val_s.extend( sepaList )
-        for l in vals_t:
-            l[0] = mirror_padding( l[0], 544, 704 )
-            l[1] = mirror_padding( l[1], 544, 704 )
-            sepaList = cutting_img( l, 272, 352 )
-            val_t.extend( sepaList )
+    val_t = []
 
-        len_val_s = len( val_s )
-        len_val_t = len( val_t )
+    for l in vals_t:
+        l[0] = mirror_padding( l[0], 544, 704 )
+        l[1] = mirror_padding( l[1], 544, 704 )
+        sepaList = cutting_img( l, 272, 352 )
+        val_t.extend( sepaList )
+
+    len_val_t = len( val_t )
         
     # s:segmentation d:discrepancy
     tr_s_loss_list = []
@@ -217,52 +191,6 @@ def train_net(net_g,
     L_seg = 0
     assigned_list = []
 
-    if large_flag:
-        
-        tmp_train_s = ids_s['train']
-        tmp_train_t = ids_t['train']
-
-        val_s = ids_s['val']
-        val_t = ids_t['val']
-
-        print(f"len tmp_train_s:{len(tmp_train_s)}")
-        print(type(tmp_train_s[0]))
-        print(tmp_train_s[0][0].shape)
-        #####train画像を1400x1680にmirror padding
-        #source
-        for k in tmp_train_s:
-            k[0] = mirror_padding(k[0], 1400, 1680)
-            k[1] = mirror_padding(k[1], 1400, 1680)
-        #target
-        for k in tmp_train_t:
-            k[0] = mirror_padding(k[0], 1400, 1680)
-            k[1] = mirror_padding(k[1], 1400, 1680)
-
-        for l in val_s:
-            l[0] = mirror_padding(l[0], 1024, 1536)
-            l[1] = mirror_padding(l[1], 1024, 1536)
-
-        for l in val_t:
-            l[0] = mirror_padding(l[0], 1024, 1536)
-            l[1] = mirror_padding(l[1], 1024, 1536)
-
-        #6分割( valの枚数 = 1 を想定 )
-        val_s = cutting_img( val_s[0], size )
-        val_t = cutting_img( val_t[0], size )
-        len_val_s = len( val_s )
-        len_val_t = len( val_t )
-        
-    else:
-        if source == 'HeLa':
-            train_s = ids_s['train']
-            train_t = ids_t['train']
-            
-            val_s = ids_s['val']
-            val_t = ids_t['val']
-
-            len_val_s = len(val_s)
-            len_val_t = len(val_t)
-
     if try_flag:
         print(f'len_train_s: {len_train}')
         print(f'len_train_t: {len(trains_t)}')
@@ -274,24 +202,17 @@ def train_net(net_g,
     # fix the seed
     random.seed( 0 )
     for epoch in range(epochs):
+
+        #---- Create batch 
         count = 0
-        if large_flag:
-            train_s = []
-            train_t = []
+        
+        train_s = []
+        train_t = []
 
-            for train_img_list in tmp_train_s:
-                train_s.append( random_cropping( train_img_list[0], train_img_list[1], size, size ) )
-            for train_img_list in tmp_train_t:
-                train_t.append( random_cropping( train_img_list[0], train_img_list[1], size, size ) )
-
-        if source == 'bt474' or 'shsy5y':
-            train_s = []
-            train_t = []
-
-            for train_img_list in trains_s:
-                train_s.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
-            for train_img_list in trains_t:
-                train_t.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
+        for train_img_list in trains_s:
+            train_s.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
+        for train_img_list in trains_t:
+            train_t.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
 
         random.shuffle( train_s )
         random.shuffle( train_t )
@@ -301,7 +222,7 @@ def train_net(net_g,
         s_epoch_loss = 0
         d_epoch_loss = 0
         assignedSum = 0
-        p_epoch_loss=0
+        
         
         for i, (bs, bt) in enumerate(zip(batch(train_s, batch_size, source), batch(train_t, batch_size, source))):
             
@@ -337,7 +258,7 @@ def train_net(net_g,
             # record segmentation loss 
             s_epoch_loss += loss_s.item()
 
-            # parameter update`
+            # parameter update
             loss_s.backward()
             opt_g.step()
             opt_s1.step()
@@ -348,6 +269,7 @@ def train_net(net_g,
             opt_g.zero_grad()
             opt_s1.zero_grad()
             opt_s2.zero_grad()
+            
             loss_s = 0
             
             feat_s = net_g(img_s)
@@ -370,20 +292,22 @@ def train_net(net_g,
             mask_prob_flat_t1 = mask_prob_t1.view(-1)
             mask_prob_flat_t2 = mask_prob_t2.view(-1)
 
+            #Step B don't use auxiliary boundary
+            """
             # g_main -> s_main output
             with torch.no_grad():
                 feat_t_main = net_g_main(img_t)
                 mask_pred_t_main = net_s_main(*feat_t_main)
                 mask_prob_t_main = torch.sigmoid(mask_pred_t_main)
                 mask_prob_flat_t_main = mask_prob_t_main.view(-1)
-            
+            """
             loss_s += criterion(mask_prob_flat_s1, mask_flat)
             loss_s += criterion(mask_prob_flat_s2, mask_flat)
 
             # s_main, s1, s2 のL1ノルムをそれぞれ計算 
             loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-            loss_dis += torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t_main))
-            loss_dis += torch.mean(torch.abs(mask_prob_flat_t2 - mask_prob_flat_t_main))
+            #loss_dis += torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t_main))
+            #loss_dis += torch.mean(torch.abs(mask_prob_flat_t2 - mask_prob_flat_t_main))
             
             loss = loss_s - co_B * loss_dis
 
@@ -445,8 +369,6 @@ def train_net(net_g,
 
         tr_s_loss_list.append(seg)
         tr_d_loss_list.append(dis)
-        pseudo_loss_list.append(pseudo_epoch_loss)
-        assigned_list.append(assignedSum_epoch)
         
         #---- Val section
         val_dice = 0
@@ -458,42 +380,7 @@ def train_net(net_g,
         val_d_loss = 0
 
         with torch.no_grad():
-            for j, bs in enumerate(val_s):
-                img_s = np.array(bs[0]).astype(np.float32)
-                img_s = img_s.reshape([1, img_s.shape[-2], img_s.shape[-1]])
-                mask = np.array(bs[1]).astype(np.float32)
-                mask = mask.reshape([1, mask.shape[-2], mask.shape[-1]])
-
-                img_s =  torch.from_numpy(img_s).unsqueeze(0).cuda(device)
-                mask = torch.from_numpy(mask).unsqueeze(0).cuda(device)
-                
-                mask_flat = mask.view(-1)
-
-                #segmentation loss
-                
-                feat_s = net_g(img_s)
-                mask_pred_s1 = net_s1(*feat_s)
-                mask_pred_s2 = net_s2(*feat_s)
-                
-                mask_prob_s1 = torch.sigmoid(mask_pred_s1)
-                mask_prob_s2 = torch.sigmoid(mask_pred_s2)
-                
-                mask_prob_flat_s1 = mask_prob_s1.view(-1)
-                mask_prob_flat_s2 = mask_prob_s1.view(-1)
-
-                loss_s1 = criterion(mask_prob_flat_s1, mask_flat)
-                loss_s2 = criterion(mask_prob_flat_s2, mask_flat)
-                loss = loss_s1 + loss_s2
-
-                val_s_loss += loss.item()
-
-                #dice は一旦s1で計算
-                mask_bin_s1 = (mask_prob_s1[0] > 0.5).float()
-                mask_bin_s2 = (mask_prob_s2[0] > 0.5).float()
-                val_iou_s1 += iou_loss(mask_bin_s1, mask.float(), device).item()
-                val_iou_s2 += iou_loss(mask_bin_s2, mask.float(), device).item()
-                #val_dice += dice_coeff(mask_bin, mask.float(), device).item()
-
+            
             for k, bt in enumerate(val_t):
                 #discrepancy loss
                 img_t = np.array(bt[0]).astype(np.float32)
@@ -526,72 +413,24 @@ def train_net(net_g,
                 val_d_loss += co_C * loss_dis.item()
             
 
-        current_val_s_loss = val_s_loss / len_val_s
         current_val_d_loss = val_d_loss / len_val_t
         with open(path_w, mode='a') as f:
-            f.write('val: val_seg: {}, val_dis : {} \n'.format(current_val_s_loss, current_val_d_loss))
+            f.write('val_dis : {} \n'.format(current_val_d_loss))
         
-        val_s_loss_list.append(current_val_s_loss)
         val_d_loss_list.append(current_val_d_loss)
         
         #valdice_list.append(val_dice / len_val_s)
-        val_iou_s1_list.append( val_iou_s1 / len_val_s )
-        val_iou_s2_list.append( val_iou_s2 / len_val_s )
         val_iou_t1_list.append( val_iou_t1 / len_val_t )
         val_iou_t2_list.append( val_iou_t2 / len_val_t )
-
-        #s_best_g = net_g.state_dict()
-        #s_best_s = net_s1.state_dict()
-        #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-        #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
         
-        # minimum s_loss or d_loss 更新時checkpoint saved 
-        already = False
-        if seg < min_val_s_loss:
-            min_val_s_loss = seg
-            #s_best_g = net_g.state_dict()
-            #s_best_s = net_s1.state_dict()
-            s_bestepoch = epoch + 1
-            #torch.save(s_best_g, '{}CP_G_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-            #torch.save(s_best_s, '{}CP_S_epoch{}.pth'.format(dir_checkpoint, epoch+1))
-            if saEpoch == None:
-                
-                best_g = net_g.state_dict()
-                best_s1 = net_s1.state_dict()
-                best_s2 = net_s2.state_dict()
-                best_s_main = net_s_main.state_dict()
-                op_g = opt_g.state_dict()
-                op_s1 = opt_s1.state_dict()
-                op_s2 = opt_s2.state_dict()
-                op_s_main = opt_s_main.state_dict()
-
-                torch.save({
-                    'best_g' : best_g,
-                    'best_s1' : best_s1,
-                    'best_s2' : best_s2,
-                    'opt_g' : op_g,
-                    'opt_s1' : op_s1,
-                    'opt_s_main' : op_s_main,
-                }, '{}CP_min_segloss_e{}'.format(dir_checkpoint, epoch+1))
-
-                already = True
-            
-            
-            with open(path_w, mode='a') as f:
-                f.write('val seg loss is update \n')
-
-                    
-
-        if ( saEpoch != None ) and ( epoch < saEpoch ):
-            
+        if dis < min_val_d_loss:
+            min_val_d_loss = dis
             best_g = net_g.state_dict()
             best_s1 = net_s1.state_dict()
             best_s2 = net_s2.state_dict()
-            best_s_main = net_s_main.state_dict()
             op_g = opt_g.state_dict()
             op_s1 = opt_s1.state_dict()
             op_s2 = opt_s2.state_dict()
-            op_s_main = opt_s_main.state_dict()
 
             torch.save({
                 'best_g' : best_g,
@@ -599,36 +438,34 @@ def train_net(net_g,
                 'best_s2' : best_s2,
                 'opt_g' : op_g,
                 'opt_s1' : op_s1,
-                'opt_s_main' : op_s_main,
-            }, '{}CP_min_segloss_e{}'.format(dir_checkpoint, epoch+1))
-            
+                'opt_s2' : op_s2,
+            }, '{}CP_min_disloss_e{}'.format(dir_checkpoint, epoch+1))
+
+            ###model, optimizer save
+            with open(path_w, mode='a') as f:
+                f.write('dis loss is update \n')            
             
             
                 
-        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'val_s_loss_list': val_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list, 'pseudo_loss_list': pseudo_loss_list, 'assigned_list': assigned_list }
+        my_dict = { 'tr_s_loss_list': tr_s_loss_list, 'tr_d_loss_list': tr_d_loss_list, 'val_d_loss_list': val_d_loss_list }
 
         with open(path_lossList, "wb") as tf:
             pickle.dump( my_dict, tf )
                 
-    
+
+
     #segmentation loss graph
-    draw_graph( dir_graphs, 'segmentation_loss', epochs, blue_list=tr_s_loss_list, blue_label='train', red_list=val_s_loss_list, red_label='validation' )
+    draw_graph( dir_graphs, 'segmentation_loss', epochs, red_list=tr_s_loss_list, red_label='train' )
 
-    
-    #discrepancy loss graph
-    draw_graph( dir_graphs, 'discrepancy_loss', epochs, blue_list=tr_d_loss_list, blue_label='train', red_list=val_d_loss_list, red_label='validation' )
+    #discrepancy loss graph                                                                                                   
+    draw_graph( dir_graphs, 'discrepancy_loss', epochs, red_list=tr_d_loss_list, red_label='train' )
 
-    #source iou graph
-    draw_graph( dir_graphs, 'source_IoU', epochs, blue_list=val_iou_s1_list,  blue_label='s1_IoU', green_list=val_iou_s2_list,  green_label='s2_IoU', y_label='IoU' )
+    #source iou graph                                                                                                         
+    draw_graph( dir_graphs, 'val_d_loss', epochs, blue_list=val_d_loss_list,  blue_label='validation' )
 
-    #target iou graph
+    #target iou graph                                                                                                         
     draw_graph( dir_graphs, 'target_IoU', epochs, red_list=val_iou_t1_list,  red_label='t1_IoU', green_list=val_iou_t2_list,  green_label='t2_IoU', y_label='IoU' )
-        
-    # pseudo loss
-    draw_graph( dir_graphs, 'pseudo_loss', epochs, red_list=pseudo_loss_list,  red_label='train_pseudo_loss' )
 
-    # assigned percentage
-    draw_graph( dir_graphs, 'assigned_percentage', epochs, green_list=assigned_list,  green_label='assigned_pseudo_label' )
     
 
 def get_args():
@@ -650,7 +487,7 @@ def get_args():
                         help='target cell', dest='target')
     parser.add_argument('-size', '--image-size', metavar='IS', type=int, nargs='?', default=128,
                         help='Image size', dest='size')
-    parser.add_argument('-nk', '--num_k', metavar='NK', type=int, nargs='?', default=2,
+    parser.add_argument('-nk', '--num_k', metavar='NK', type=int, nargs='?', default=3,
                         help='how many steps to repeat the generator update', dest='num_k')
     parser.add_argument('-o', '--output', metavar='O', type=str, nargs='?', default='result',
                         help='out_dir?', dest='out_dir')
@@ -684,13 +521,18 @@ def get_args():
                         help='train raw unet?', dest='raw_mode')
     parser.add_argument('-cell', type=str, nargs='?', default='bt474',
                         help='what cell you  use raw unet for?', dest='cell_raw')
+    parser.add_argument('-preenco', type=bool, nargs='?', default='1',
+                        help='train MCD from scratch?', dest='preenco')
     
 
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
-    device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu_num}'
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    #device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
 
     
     net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
@@ -706,10 +548,16 @@ if __name__ == '__main__':
     net_g_main.to(device=device)
     
     checkPoint = torch.load(args.contrain)
-    net_g.load_state_dict(checkPoint['best_g'])
-    net_s1.load_state_dict(checkPoint['best_s1'])
-    net_s2.load_state_dict(checkPoint['best_s2'])
-    net_g_main.load_state_dict(checkPoint['best_g'])
+
+    #args.preenco==True: use term1 encoder(pretrain) as net_g
+    #MCDはスクラッチ()
+    #補助境界としてuse unet from term1 as auxiliary boudary
+    if args.preenco:
+        net_g.load_state_dict(checkPoint['best_g_main'])
+    #net_s1.load_state_dict(checkPoint['best_s1'])
+    #net_s2.load_state_dict(checkPoint['best_s2'])
+    net_g_main.load_state_dict(checkPoint['best_g_main'])
+    net_s_main.load_state_dict(checkPoint['best_s_main'])
     #optimizer = optim.Adam(model.parameters(), lr=1e-3)
     opt_g = optim.Adam(
         net_g.parameters(),
@@ -751,17 +599,20 @@ if __name__ == '__main__':
         weight_decay=0,
         amsgrad=False
     )
-    
-    opt_g.load_state_dict(checkPoint['opt_g'])
-    opt_s1.load_state_dict(checkPoint['opt_s1'])
-    opt_s2.load_state_dict(checkPoint['opt_s2'])
-    opt_g_main.load_state_dict(checkPoint['opt_g'])
+
+    if args.preenco:
+        opt_g.load_state_dict(checkPoint['opt_g_main'])
+    #opt_s1.load_state_dict(checkPoint['opt_s1'])
+    #opt_s2.load_state_dict(checkPoint['opt_s2'])
+    #opt_g_main.load_state_dict(checkPoint['opt_g'])
     
     ###to cuda
-    for state in opt_g.state.values():
-        for k, v in state.items():
-            if isinstance(v, torch.Tensor):
-                state[k] = v.to(device=device)
+    if args.preenco:
+        for state in opt_g.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device=device)
+    """
     for state in opt_s1.state.values():
         for k, v in state.items():
             if isinstance(v, torch.Tensor):
@@ -770,11 +621,11 @@ if __name__ == '__main__':
         for k, v in state.items():
             if isinstance(v, torch.Tensor):
                 state[k] = v.to(device=device)
-    for state in opt_g_main.state.values():
-        for k, v in state.items():
-            if isinstance(v, torch.Tensor):
-                state[k] = v.to(device=device)
-        
+    #for state in opt_g_main.state.values():
+        #for k, v in state.items():
+            #if isinstance(v, torch.Tensor):
+                #state[k] = v.to(device=device)
+    """ 
     key = '' if args.raw_mode == False else '_raw'
     
     dir_result = './tr{}Result/{}'.format(key, args.out_dir)
@@ -791,12 +642,13 @@ if __name__ == '__main__':
         train_net(net_g=net_g,
                   net_s1=net_s1,
                   net_s2=net_s2,
+                  net_g_main=net_g_main,
                   net_s_main=net_s_main,
+                  device=device,
                   epochs=args.epochs,
                   batch_size=args.batchsize,
                   lr=args.lr,
                   first_num_of_kernels=args.first_num_of_kernels,
-                  device=device,
                   thresh=args.thresh,
                   dir_checkpoint=f'{dir_checkpoint}/',
                   dir_result=f'{dir_result}/',
