@@ -38,18 +38,20 @@ def eval_mcd( device, test_list, model=None, net_g=None, net_s=None, net_s_anoth
             else:
                 feat = net_g(img)
                 mask = net_s(*feat)
-                mask_ano = net_s_another(*feat)
-
                 mask_prob = torch.sigmoid(mask).squeeze(0)
-                mask_prob_ano = torch.sigmoid(mask_ano).squeeze(0)
-
                 mask_prob = tf(mask_prob.cuda(device))
-                mask_prob_ano = tf( mask_prob_ano.cuda(device) )
+                
+                if net_s_another == None:
+                    inf = mask_prob.squeeze().cuda(device)
+                else:
+                    mask_ano = net_s_another(*feat)
+                    mask_prob_ano = torch.sigmoid(mask_ano).squeeze(0)
+                    mask_prob_ano = tf( mask_prob_ano.cuda(device) )
 
-                inf_s1 = mask_prob.squeeze().cuda(device)
-                inf_s2 = mask_prob_ano.squeeze().cuda(device)
+                    inf_s1 = mask_prob.squeeze().cuda(device)
+                    inf_s2 = mask_prob_ano.squeeze().cuda(device)
 
-                inf = (inf_s1 + inf_s2) /2
+                    inf = (inf_s1 + inf_s2) /2
 
 
         tmp_IoU = iou_pytorch(inf, gt, device)
@@ -88,6 +90,8 @@ def get_args():
                         help='eval testset only??', dest='test_only')
     parser.add_argument('-all', '--all-cells', type=bool, nargs='?', default=0,
                         help='inference the model by all cells??', dest='all_cells')
+    parser.add_argument('-term1', type=bool, nargs='?', default=0,
+                        help='inference model from term1?', dest='term1')
 
     return parser.parse_args()
 
@@ -109,18 +113,29 @@ if __name__ == '__main__':
 
     else:
         # load MCD-U-Net
-        net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-        net_g.load_state_dict( checkPoint['best_g'] )
-        net_g.to(device=device)
-        net_g.eval()
-        net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-        net_s1.load_state_dict( checkPoint['best_s1'] )
-        net_s1.to(device=device)
-        net_s1.eval()
-        net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-        net_s2.load_state_dict( checkPoint['best_s2'] )
-        net_s2.to(device=device)
-        net_s2.eval()
+        if args.term1:
+            net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net_g.load_state_dict( checkPoint['best_g_main'] )
+            net_g.to(device=device)
+            net_g.eval()
+            net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net_s1.load_state_dict( checkPoint['best_s_main'] )
+            net_s1.to(device=device)
+            net_s1.eval()
+            
+        else:
+            net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net_g.load_state_dict( checkPoint['best_g'] )
+            net_g.to(device=device)
+            net_g.eval()
+            net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net_s1.load_state_dict( checkPoint['best_s1'] )
+            net_s1.to(device=device)
+            net_s1.eval()
+            net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net_s2.load_state_dict( checkPoint['best_s2'] )
+            net_s2.to(device=device)
+            net_s2.eval()
 
         net=None
 
@@ -199,7 +214,11 @@ if __name__ == '__main__':
             f.write(f'inference single cell({args.cell}, \n model:{args.checkpoint})\n')
         testFiles = sorted( glob.glob(f'{testDir}/*'), key=natural_keys )
         tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
-        IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+        if args.term1:
+            #net_s2=None
+            IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=None, raw=args.raw_mode , logfilePath=path_w)
+        else:
+            IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
         
         #img_result, img_merge = segment(seg_shsy5y, net_g=net_g, net_s=net_s1, use_mcd=1)
         
