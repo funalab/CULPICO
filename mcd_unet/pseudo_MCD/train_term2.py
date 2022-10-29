@@ -334,16 +334,20 @@ def train_net(net_g,
                 mask_prob_flat_t1 = mask_prob_t1.view(-1)
                 mask_prob_flat_t2 = mask_prob_t2.view(-1)
 
-                # g_main -> s_main output
-                with torch.no_grad():
-                    feat_t_main = net_g_main(img_t)
-                    mask_pred_t_main = net_s_main(*feat_t_main)
-                    mask_prob_t_main = torch.sigmoid(mask_pred_t_main)
-                    mask_prob_flat_t_main = mask_prob_t_main.view(-1)
-                    
                 loss_dis = torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t2))
-                loss_dis += torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t_main))
-                loss_dis += torch.mean(torch.abs(mask_prob_flat_t2 - mask_prob_flat_t_main))
+
+                # g_main -> s_main output
+                # when args.no_boundary == True
+                if net_g_main != None:
+                    with torch.no_grad():
+                        feat_t_main = net_g_main(img_t)
+                        mask_pred_t_main = net_s_main(*feat_t_main)
+                        mask_prob_t_main = torch.sigmoid(mask_pred_t_main)
+                        mask_prob_flat_t_main = mask_prob_t_main.view(-1)
+                    
+                
+                    loss_dis += torch.mean(torch.abs(mask_prob_flat_t1 - mask_prob_flat_t_main))
+                    loss_dis += torch.mean(torch.abs(mask_prob_flat_t2 - mask_prob_flat_t_main))
                 
                 loss = co_C * loss_dis
 
@@ -523,6 +527,8 @@ def get_args():
                         help='what cell you  use raw unet for?', dest='cell_raw')
     parser.add_argument('-preenco', type=bool, nargs='?', default='1',
                         help='train MCD from scratch?', dest='preenco')
+    parser.add_argument('-noboundary', type=bool, nargs='?', default='0',
+                        help='use auxiliary boundary from term1 ?', dest='no_boundary')
     
 
     return parser.parse_args()
@@ -538,27 +544,46 @@ if __name__ == '__main__':
     net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_s2 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-    net_s_main = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-    net_g_main = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+    
 
     net_g.to(device=device)
     net_s1.to(device=device)
     net_s2.to(device=device)
-    net_s_main.to(device=device)
-    net_g_main.to(device=device)
-    
-    checkPoint = torch.load(args.contrain)
 
-    #args.preenco==True: use term1 encoder(pretrain) as net_g
-    #MCDはスクラッチ()
-    #補助境界としてuse unet from term1 as auxiliary boudary
-    if args.preenco:
-        net_g.load_state_dict(checkPoint['best_g_main'])
-    #net_s1.load_state_dict(checkPoint['best_s1'])
-    #net_s2.load_state_dict(checkPoint['best_s2'])
-    net_g_main.load_state_dict(checkPoint['best_g_main'])
-    net_s_main.load_state_dict(checkPoint['best_s_main'])
-    #optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    checkPoint = torch.load(args.contrain)
+    if args.no_boundary:
+        #補助境界使わない
+        net_g_main = None
+        net_s_main = None
+        opt_g_main = None
+        opt_s_main = None
+    else:
+        #use unet from term1 as auxiliary boudary
+        net_s_main = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        net_g_main = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+        net_s_main.to(device=device)
+        net_g_main.to(device=device)
+        net_g_main.load_state_dict(checkPoint['best_g_main'])
+        net_s_main.load_state_dict(checkPoint['best_s_main'])
+        opt_s_main = optim.Adam(
+            net_s_main.parameters(),
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+            amsgrad=False
+        )
+        
+        opt_g_main = optim.Adam(
+            net_g_main.parameters(),
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+            amsgrad=False
+        )    
+
+        
     opt_g = optim.Adam(
         net_g.parameters(),
         lr=args.lr,
@@ -583,35 +608,20 @@ if __name__ == '__main__':
         weight_decay=0,
         amsgrad=False
     )
-    opt_s_main = optim.Adam(
-        net_s_main.parameters(),
-        lr=args.lr,
-        betas=(0.9, 0.999),
-        eps=1e-08,
-        weight_decay=0,
-        amsgrad=False
-    )
-    opt_g_main = optim.Adam(
-        net_g.parameters(),
-        lr=args.lr,
-        betas=(0.9, 0.999),
-        eps=1e-08,
-        weight_decay=0,
-        amsgrad=False
-    )
-
-    if args.preenco:
-        opt_g.load_state_dict(checkPoint['opt_g_main'])
-    #opt_s1.load_state_dict(checkPoint['opt_s1'])
-    #opt_s2.load_state_dict(checkPoint['opt_s2'])
-    #opt_g_main.load_state_dict(checkPoint['opt_g'])
     
-    ###to cuda
     if args.preenco:
+        #args.preenco==True: use term1 encoder(pretrain) as net_g
+        #MCDはスクラッチ()
+        net_g.load_state_dict(checkPoint['best_g_main'])
+
+        opt_g.load_state_dict(checkPoint['opt_g_main'])
+        
+        ###to cuda
         for state in opt_g.state.values():
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
                     state[k] = v.to(device=device)
+
     """
     for state in opt_s1.state.values():
         for k, v in state.items():
@@ -625,7 +635,9 @@ if __name__ == '__main__':
         #for k, v in state.items():
             #if isinstance(v, torch.Tensor):
                 #state[k] = v.to(device=device)
-    """ 
+    """
+    
+    
     key = '' if args.raw_mode == False else '_raw'
     
     dir_result = './tr{}Result/{}'.format(key, args.out_dir)
