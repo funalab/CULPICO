@@ -383,6 +383,9 @@ def get_args():
                         help='corruption rate, should be less than 1', dest='noise_rate')
     parser.add_argument('-coteaching', type=bool, nargs='?', default=1,
                         help='co_teaching or normal ?', dest='co_teaching')
+    parser.add_argument('-next', type=bool, nargs='?', default=0,
+                        help='pseudolab refine & model retrain ?', dest='next')
+    
   
     return parser.parse_args()
 
@@ -406,7 +409,7 @@ if __name__ == '__main__':
 
     # fix the seed
     torch_fix_seed()
-
+    
     # co-teaching two networks
     net_1 = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_1.to(device=device)
@@ -419,16 +422,6 @@ if __name__ == '__main__':
     lgnet_2 = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     lgnet_2.to(device=device)
 
-    
-
-    # loading models from checkpoints
-    checkPoint_1 = torch.load( args.net1, map_location=device )
-    net_1.load_state_dict( checkPoint_1['best_net'] )
-    lgnet_1.load_state_dict( checkPoint_1['best_net'] )
-    checkPoint_2 = torch.load( args.net2, map_location=device )
-    net_2.load_state_dict( checkPoint_2['best_net'] )
-    lgnet_2.load_state_dict( checkPoint_2['best_net'] )
-    
     opt_1 = optim.Adam(
         net_1.parameters(),
         lr=args.lr,
@@ -446,10 +439,32 @@ if __name__ == '__main__':
         weight_decay=0,
         amsgrad=False
     )
-            
     
-    opt_1.load_state_dict(checkPoint_1['best_opt'])
-    opt_2.load_state_dict(checkPoint_2['best_opt'])
+    if args.next:
+        # label refine & model retrain
+        checkPoint = torch.load( args.net1, map_location=device )
+        net_1.load_state_dict( checkPoint['best_net1'] )
+        lgnet_1.load_state_dict( checkPoint['best_net1'] )
+        net_2.load_state_dict( checkPoint['best_net2'] )
+        lgnet_2.load_state_dict( checkPoint['best_net2'] )
+
+        opt_1.load_state_dict(checkPoint['opt_net1'])
+        opt_2.load_state_dict(checkPoint['opt_net2'])
+        
+    else:
+        # loading models from checkpoints
+        
+        checkPoint_1 = torch.load( args.net1, map_location=device )
+        net_1.load_state_dict( checkPoint_1['best_net'] )
+        lgnet_1.load_state_dict( checkPoint_1['best_net'] )
+        checkPoint_2 = torch.load( args.net2, map_location=device )
+        net_2.load_state_dict( checkPoint_2['best_net'] )
+        lgnet_2.load_state_dict( checkPoint_2['best_net'] )
+
+        opt_1.load_state_dict(checkPoint_1['best_opt'])
+        opt_2.load_state_dict(checkPoint_2['best_opt'])
+    
+            
     
     # optimizer to cuda
     for state in opt_1.state.values():
