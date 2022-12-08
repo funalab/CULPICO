@@ -251,11 +251,13 @@ def train_net(net_g,
                     pseudo_criterion = nn.BCELoss( weight=confidence )
                 elif pseudo_mode == 2:
                     pseudo_lab, confidence = create_uncer_pseudo( mask_prob_flat_t1, mask_prob_flat_t2, T_dis=thresh ,device=device )
-                    confidence = confidence * 0.8
+                    confidence = confidence * 0.6
                     pseudo_criterion = nn.BCELoss( weight=confidence )
-                else:    
-                    decide, pseudo_lab, assigned_C = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
-                                                                         T_dis=thresh, conf=pseConf, device=device)
+                else:
+                    mask_prob_mean = ( mask_prob_flat_t1 + mask_prob_flat_t2 ) / 2
+                    pseudo_lab = ( mask_prob_mean > 0.5 ).float()
+                    #decide, pseudo_lab, assigned_C = create_pseudo_label(mask_prob_flat_t1, mask_prob_flat_t2,\
+                                                                         #T_dis=thresh, conf=pseConf, device=device)
                 
                 
             # calc loss for net_s_main
@@ -269,7 +271,8 @@ def train_net(net_g,
             elif pseudo_mode == 2:
                 loss = pseudo_criterion( mask_prob_flat_t_main, pseudo_lab.detach() )
             else:
-                loss = criterion(mask_prob_flat_t_main[decide], pseudo_lab.detach())
+                loss = criterion( mask_prob_flat_t_main, pseudo_lab.detach() )
+                #loss = criterion(mask_prob_flat_t_main[decide], pseudo_lab.detach())
 
             p_epoch_loss += loss.item()
             
