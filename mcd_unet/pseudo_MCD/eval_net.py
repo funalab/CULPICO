@@ -12,6 +12,58 @@ from skimage import io
 import statistics
 import os
 
+def segment(test_list, model=None, net_g=None, net_s=None, net_s_another=None, raw=False, logfilePath=None):
+    tf = transforms.Compose([
+                transforms.ToPILImage(),
+                #transforms.Resize(h),
+                transforms.ToTensor()
+            ])
+    for i, image in enumerate(test_list):
+    #print(i)
+    #print(file[1].shape)
+    #.tocuda()
+        img = torch.from_numpy(image[0]).unsqueeze(0).cpu()
+
+        with torch.no_grad():
+            if raw:
+                mask = model(img)
+
+                mask_prob = torch.sigmoid(mask).squeeze(0)
+                mask_prob = tf(mask_prob.cpu())
+                inf = mask_prob.squeeze().cpu().numpy()
+
+            else:
+
+                feat = net_g(img)
+                mask = net_s(*feat)
+                mask_prob = torch.sigmoid(mask).squeeze(0)
+                mask_prob = tf(mask_prob.cpu())
+                
+                if net_s_another == None:
+                    inf = mask_prob.squeeze().cpu()
+                else:
+                    mask_ano = net_s_another(*feat)
+                    mask_prob_ano = torch.sigmoid(mask_ano).squeeze(0)
+                    mask_prob_ano = tf( mask_prob_ano.cpu() )
+
+                    inf_s1 = mask_prob.squeeze().cpu()
+                    inf_s2 = mask_prob_ano.squeeze().cpu()
+
+                    inf = (inf_s1 + inf_s2) /2
+                #######
+                
+
+            for i in range(inf.shape[0]):
+                for j in range(inf.shape[1]):
+                     if inf[i][j]>0.5:
+                        inf[i][j] = 1
+                     else:
+                        inf[i][j] = 0
+            inf = np.uint8(inf)
+            re, me = merge_images(image[1][0], inf)
+            return re, me
+
+
 def eval_mcd( device, test_list, model=None, net_g=None, net_s=None, net_s_another=None, raw=False, logfilePath=None):
 
     IoU_list = []
@@ -92,12 +144,17 @@ def get_args():
                         help='inference the model by all cells??', dest='all_cells')
     parser.add_argument('-term1', type=bool, nargs='?', default=0,
                         help='inference model from term1?', dest='term1')
+    parser.add_argument('-seg',  type=bool, nargs='?', default=0,
+                        help='seg hozon??', dest='seg')
 
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
-    device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
+    if args.seg:
+        device = torch.device('cpu')
+    else:
+        device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
 
     checkPoint = torch.load( args.checkpoint, map_location=device )
 
@@ -216,18 +273,34 @@ if __name__ == '__main__':
         tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
         if args.term1:
             #net_s2=None
-            IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=None, raw=args.raw_mode , logfilePath=path_w)
+            if args.seg:
+                net_s2=None
+                img_result, img_merge = segment(seg_shsy5y, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                io.imsave(f'{dir_imgs}/input.tif', imgSet[-2].reshape(img.shape[-2], img.shape[-1]))
+                io.imsave(f'{dir_imgs}/result.tif', img_result)
+                io.imsave(f'{dir_imgs}/merge.tif', img_merge)
+            else:
+                IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=None, raw=args.raw_mode , logfilePath=path_w)
+                with open(path_w, mode='a') as f:
+                    for i, filename in enumerate(testFiles):
+                        f.write('{}:{}\n'.format( i, filename ))
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
         else:
-            IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+            if args.seg:
+                img_result, img_merge = segment(seg_shsy5y, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                io.imsave(f'{dir_imgs}/input.tif', imgSet[-2].reshape(img.shape[-2], img.shape[-1]))
+                io.imsave(f'{dir_imgs}/result.tif', img_result)
+                io.imsave(f'{dir_imgs}/merge.tif', img_merge)
+            else:
+                IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
         
         #img_result, img_merge = segment(seg_shsy5y, net_g=net_g, net_s=net_s1, use_mcd=1)
-        
-        with open(path_w, mode='a') as f:
-            for i, filename in enumerate(testFiles):
-                f.write('{}:{}\n'.format( i, filename ))
-                
+                with open(path_w, mode='a') as f:
+                    for i, filename in enumerate(testFiles):
+                        f.write('{}:{}\n'.format( i, filename ))
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
             #f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
-            f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                
 
         #io.imsave(f'{dir_imgs}/input.tif', imgSet[-2].reshape(img.shape[-2], img.shape[-1]))
         #io.imsave(f'{dir_imgs}/result.tif', img_result)

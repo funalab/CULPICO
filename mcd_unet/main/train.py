@@ -161,7 +161,7 @@ def train_net(net_g,
         return 0
 
     # fix the seed
-    random.seed( 0 )
+    #random.seed( 0 )
 
     for epoch in range(epochs):
 
@@ -470,9 +470,25 @@ def get_args():
                         help='train raw unet?', dest='raw_mode')
     parser.add_argument('-cell', type=str, nargs='?', default='bt474',
                         help='what cell you  use raw unet for?', dest='cell_raw')
+    parser.add_argument('-Lcell', type=str, nargs='?', default=None,
+                        help='what cell you train sevenmodel for?', dest='Lcell_model')
+    parser.add_argument('-seed', type=int, nargs='?', default=0,
+                        help='seed num. ??', dest='seed')
     
 
     return parser.parse_args()
+
+def torch_fix_seed(seed=42):
+    # Python random & randam hash creation
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(seed)
+    # Numpy
+    np.random.seed(seed)
+    # Pytorch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.use_deterministic_algorithms = True
 
 if __name__ == '__main__':
     args = get_args()
@@ -481,6 +497,8 @@ if __name__ == '__main__':
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     #device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
 
+    torch_fix_seed(args.seed)
+    
     if args.raw_mode == False:
         net_g = Generator(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
         net_s1 = Segmenter(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
@@ -602,7 +620,8 @@ if __name__ == '__main__':
                 scaling_type=args.scaling_type,
                 dir_checkpoint=f'{dir_checkpoint}/',
                 dir_result=f'{dir_result}/',
-                dir_graphs=f'{dir_graphs}/'
+                dir_graphs=f'{dir_graphs}/',
+                Lcell_model=args.Lcell_model
             )
             
     except KeyboardInterrupt:
