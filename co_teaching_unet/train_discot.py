@@ -65,10 +65,13 @@ def train_net(net_1,
         f.write( f'src:{source}, tgt:{target}, w or w/o src,:{with_source}  \n' )
         f.write( f'mode:{mode}, c_conf:{c_conf}  \n' )
         
-
     # optimizer set
     
     criterion = nn.BCELoss()
+    
+    # input should be a distribution in the log space
+    # kldiv( input, target ) 
+    kldiv = nn.KLDivLoss(reduction="batchmean")
     
     sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{source}'
     targetDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{target}'
@@ -180,6 +183,7 @@ def train_net(net_1,
         source_seg_epoch_loss_2 = 0
         tgt_seg_epoch_loss_1 = 0
         tgt_seg_epoch_loss_2 = 0
+        jsd_epoch_loss = 0
         
         # sourceも用いる場合
         if with_source:
@@ -235,7 +239,20 @@ def train_net(net_1,
                     loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2
                 
                 elif mode == 'distribution':
-                    pass
+                    pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
+
+                    mask_prob_mean_flat = 0.5 * (mask_prob_1_flat + mask_prob_2_flat)
+                    jsdiv = 0.5 * ( kldiv( mask_prob_mean_flat.log(), mask_prob_1_flat ) + \
+                         kldiv( mask_prob_mean_flat.log(), mask_prob_2_flat ))
+                    
+                    # crossing field
+                    c_jsd = 1
+                    t_loss_1 = (1-jsdiv) * criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) 
+                    t_loss_2 = (1-jsdiv) * criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
+                    
+                    loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2 + c_jsd * jsdiv
+
+                    
                 else:
                     pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
                     # crossing field
@@ -257,6 +274,8 @@ def train_net(net_1,
                 opt_1.step()
                 opt_2.step()
 
+                jsd_epoch_loss += jsdiv.item()
+
                 source_seg_epoch_loss_1 += s_loss_1.item()
                 source_seg_epoch_loss_2 += s_loss_2.item()
 
@@ -268,7 +287,7 @@ def train_net(net_1,
                 #epoch_loss_2 += loss_2.item()
                 count += 1
                 if i != 0:
-                    print('epoch : {}, iter : {}, loss : {}'.format( epoch+1, i, epoch_loss/i ) )
+                    print('epoch : {}, iter : {}, loss : {}, jsd:{} '.format( epoch+1, i, epoch_loss/i , jsd_epoch_loss/i ) )
         
         ### targetのみの場合
         else:
@@ -298,17 +317,36 @@ def train_net(net_1,
                     t_loss_1 = pseudo_criterion( mask_prob_1_flat, pseudo_lab_t2.detach() )
                     t_loss_2 = pseudo_criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
 
-                    loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2
+                    loss_total = t_loss_1 + t_loss_2
                 
                 elif mode == 'distribution':
-                    pass
+                    c_jsd = 1
+                    pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
+
+                    mask_prob_mean_flat = 0.5 * (mask_prob_1_flat + mask_prob_2_flat)
+                    # log_softmax -> .log()?
+                   
+                    ##tmp
+                    #jsdiv = kldiv( F.log_softmax(mask_prob_2_flat), mask_prob_1_flat )
+                    #t_loss_1 = criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) / torch.exp(jsdiv) 
+                    #t_loss_2 = criterion( mask_prob_2_flat, pseudo_lab_t1.detach() ) / torch.exp(jsdiv) 
+                    #loss_total = t_loss_1 + t_loss_2 + jsdiv
+
+                    # crossing field
+                    jsdiv = 0.5 * ( kldiv( mask_prob_mean_flat.log(), mask_prob_1_flat ) + \
+                         kldiv( mask_prob_mean_flat.log(), mask_prob_2_flat ))
+                    t_loss_1 = (1-jsdiv) * criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) 
+                    t_loss_2 = (1-jsdiv) * criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
+                    
+                    loss_total = t_loss_1 + t_loss_2 + c_jsd * jsdiv
+
                 else:
                     pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
                     # crossing field
                     t_loss_1 = criterion( mask_prob_1_flat, pseudo_lab_t2.detach() )
                     t_loss_2 = criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
 
-                    loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2
+                    loss_total = t_loss_1 + t_loss_2
 
                 
                 #loss_1 = s_loss_1 + t_loss_1
@@ -323,6 +361,8 @@ def train_net(net_1,
                 opt_1.step()
                 opt_2.step()
 
+                jsd_epoch_loss += jsdiv.item()
+
                 epoch_loss += loss_total.item()
                 #epoch_loss_1 += loss_1.item()
                 #epoch_loss_2 += loss_2.item()
@@ -330,7 +370,7 @@ def train_net(net_1,
 
                 count += 1
                 if i != 0:
-                    print('epoch : {}, iter : {}, loss : {}'.format( epoch+1, i, epoch_loss/i ) )
+                    print('epoch : {}, iter : {}, loss:{} , jsd: {}'.format( epoch+1, i, epoch_loss/i, jsd_epoch_loss/i ) )
 
         ### 全itr(epoch)終了 
 
@@ -469,7 +509,7 @@ def get_args():
                         help='co_teaching or normal ?', dest='co_teaching')
     parser.add_argument('-next', type=bool, nargs='?', default=0,
                         help='pseudolab refine & model retrain ?', dest='next')
-    parser.add_argument('-wsrc', type=bool, nargs='?', default=0,
+    parser.add_argument('-wsrc', type=int, nargs='?', default=0,
                         help='train with source ?', dest='with_source')
     parser.add_argument('-seed', type=int, nargs='?', default=0,
                         help='seed num?', dest='seed')
