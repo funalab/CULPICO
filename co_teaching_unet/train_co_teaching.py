@@ -462,7 +462,7 @@ def get_args():
                         help='co_teaching or normal ?', dest='co_teaching')
     parser.add_argument('-next', type=bool, nargs='?', default=0,
                         help='pseudolab refine & model retrain ?', dest='next')
-    parser.add_argument('-wsrc', type=bool, nargs='?', default=0,
+    parser.add_argument('-wsrc', type=int, nargs='?', default=0,
                         help='train with source ?', dest='with_source')
     parser.add_argument('-seed', type=int, nargs='?', default=0,
                         help='seed num?', dest='seed')                    
