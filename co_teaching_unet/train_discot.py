@@ -340,6 +340,9 @@ def train_net(net_1,
                     
                     loss_total = t_loss_1 + t_loss_2 + c_jsd * jsdiv
 
+                    
+                    jsd_epoch_loss += jsdiv.item()
+
                 else:
                     pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
                     # crossing field
@@ -361,7 +364,7 @@ def train_net(net_1,
                 opt_1.step()
                 opt_2.step()
 
-                jsd_epoch_loss += jsdiv.item()
+                
 
                 epoch_loss += loss_total.item()
                 #epoch_loss_1 += loss_1.item()
