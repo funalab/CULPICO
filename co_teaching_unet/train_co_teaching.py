@@ -97,7 +97,6 @@ def train_net(net_1,
         trains_s.extend( trains_s[:d] )
             
     len_train = len( trains_t )
-        
     # load val images
     #valsourceFiles = glob.glob( f'{sourceDir}/val/*' )
     valtargetFiles = glob.glob( f'{targetDir}/val/*' )
@@ -155,13 +154,13 @@ def train_net(net_1,
 
     
     for epoch in range(epochs):
-
+        
         count = 0
         train_s = []
         train_t = []
 
         for train_img_list in trains_s:
-            train_t.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
+            train_s.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
             
         for train_img_list in trains_t:
             train_t.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
