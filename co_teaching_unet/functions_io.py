@@ -558,6 +558,18 @@ def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
         
     return trains
 
+def create_uncer_pseudo( p1, p2, device='cpu' ):
+
+    p_dis = torch.abs( p1 - p2 ) 
+
+    pseudo_lab_p1 = torch.where( p1 > 0.5, torch.tensor(1, dtype=p_dis.dtype, device=torch.device(device)), torch.tensor(0, dtype=p_dis.dtype, device=torch.device(device)) )
+
+    pseudo_lab_p2 = torch.where( p2 > 0.5, torch.tensor(1, dtype=p_dis.dtype, device=torch.device(device)), torch.tensor(0, dtype=p_dis.dtype, device=torch.device(device)) )
+
+    confidence = 1 - p_dis
+
+    return pseudo_lab_p1, pseudo_lab_p2, confidence
+
 def loss_coteaching(y_1, y_2, t, forget_rate, batch_size, device):
     # y: pred(after sigmoid) before flatten
     # t: mask before flatten
