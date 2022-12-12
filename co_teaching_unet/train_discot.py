@@ -51,7 +51,8 @@ def train_net(net_1,
               co_teaching=1,
               with_source=0,
               mode = 'discrepancy',
-              c_conf = 1):
+              c_conf = 1,
+              metric ='kl'):
 
     # resultfile & losslist
     path_w = f"{dir_result}output.txt"
@@ -240,17 +241,29 @@ def train_net(net_1,
                 
                 elif mode == 'distribution':
                     pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
+                    
+                    if metric == 'kl':
+                        # here, jsdiv == kldiv
+                        jsdiv = kldiv( F.log_softmax(mask_prob_2_flat), mask_prob_1_flat )
+                        
+                        # crossing field
+                        t_loss_1 = criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) / torch.exp(jsdiv) 
+                        t_loss_2 = criterion( mask_prob_2_flat, pseudo_lab_t1.detach() ) / torch.exp(jsdiv) 
+                        
+                        loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2 + jsdiv
 
-                    mask_prob_mean_flat = 0.5 * (mask_prob_1_flat + mask_prob_2_flat)
-                    jsdiv = 0.5 * ( kldiv( mask_prob_mean_flat.log(), mask_prob_1_flat ) + \
+                    else:
+                        c_jsd = 20
+                        mask_prob_mean_flat = 0.5 * (mask_prob_1_flat + mask_prob_2_flat)
+
+                        jsdiv = c_jsd * 0.5 * ( kldiv( mask_prob_mean_flat.log(), mask_prob_1_flat ) + \
                          kldiv( mask_prob_mean_flat.log(), mask_prob_2_flat ))
-                    
-                    # crossing field
-                    c_jsd = 1
-                    t_loss_1 = (1-jsdiv) * criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) 
-                    t_loss_2 = (1-jsdiv) * criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
-                    
-                    loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2 + c_jsd * jsdiv
+
+                        # crossing field
+                        t_loss_1 = (1-jsdiv) * criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) 
+                        t_loss_2 = (1-jsdiv) * criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
+                        
+                        loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2 + jsdiv
 
                     
                 else:
@@ -320,28 +333,30 @@ def train_net(net_1,
                     loss_total = t_loss_1 + t_loss_2
                 
                 elif mode == 'distribution':
-                    c_jsd = 1
                     pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
 
-                    mask_prob_mean_flat = 0.5 * (mask_prob_1_flat + mask_prob_2_flat)
-                    # log_softmax -> .log()?
-                   
-                    ##tmp
-                    #jsdiv = kldiv( F.log_softmax(mask_prob_2_flat), mask_prob_1_flat )
-                    #t_loss_1 = criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) / torch.exp(jsdiv) 
-                    #t_loss_2 = criterion( mask_prob_2_flat, pseudo_lab_t1.detach() ) / torch.exp(jsdiv) 
-                    #loss_total = t_loss_1 + t_loss_2 + jsdiv
+                    if metric == 'kl':
+                        # here, jsdiv == kldiv
+                        jsdiv = kldiv( F.log_softmax(mask_prob_2_flat), mask_prob_1_flat )
+                        
+                        # crossing field
+                        t_loss_1 = criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) / torch.exp(jsdiv) 
+                        t_loss_2 = criterion( mask_prob_2_flat, pseudo_lab_t1.detach() ) / torch.exp(jsdiv) 
+                        
+                        loss_total = t_loss_1 + t_loss_2 + jsdiv
 
-                    # crossing field
-                    jsdiv = 0.5 * ( kldiv( mask_prob_mean_flat.log(), mask_prob_1_flat ) + \
+                    else:
+                        c_jsd = 20
+                        mask_prob_mean_flat = 0.5 * (mask_prob_1_flat + mask_prob_2_flat)
+
+                        jsdiv = c_jsd * 0.5 * ( kldiv( mask_prob_mean_flat.log(), mask_prob_1_flat ) + \
                          kldiv( mask_prob_mean_flat.log(), mask_prob_2_flat ))
-                    t_loss_1 = (1-jsdiv) * criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) 
-                    t_loss_2 = (1-jsdiv) * criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
-                    
-                    loss_total = t_loss_1 + t_loss_2 + c_jsd * jsdiv
 
-                    
-                    jsd_epoch_loss += jsdiv.item()
+                        # crossing field
+                        t_loss_1 = (1-jsdiv) * criterion( mask_prob_1_flat, pseudo_lab_t2.detach() ) 
+                        t_loss_2 = (1-jsdiv) * criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
+                        
+                        loss_total = t_loss_1 + t_loss_2 + jsdiv
 
                 else:
                     pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
@@ -364,7 +379,7 @@ def train_net(net_1,
                 opt_1.step()
                 opt_2.step()
 
-                
+                jsd_epoch_loss += jsdiv.item()
 
                 epoch_loss += loss_total.item()
                 #epoch_loss_1 += loss_1.item()
@@ -518,7 +533,8 @@ def get_args():
                         help='seed num?', dest='seed')
     parser.add_argument('-mode', type=str, nargs='?', default='discrepancy',
                         help='discrepancy or distribution or nothing?', dest='mode')
-                        
+    parser.add_argument('-metric', type=str, nargs='?', default='kl',
+                        help='kl or js divergence?', dest='metric')
     
   
     return parser.parse_args()
@@ -639,7 +655,8 @@ if __name__ == '__main__':
                   co_teaching=args.co_teaching,
                   with_source=args.with_source,
                   mode = args.mode,
-                  c_conf=args.c_conf)
+                  c_conf=args.c_conf,
+                  metric = args.metric)
         
             
     except KeyboardInterrupt:
