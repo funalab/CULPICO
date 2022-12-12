@@ -303,6 +303,7 @@ def train_net(net_1,
 
                 tgt_seg_epoch_loss_1 += t_loss_1.item()
                 tgt_seg_epoch_loss_2 += t_loss_2.item()
+                
                 epoch_loss_1 += loss_1.item()
                 epoch_loss_2 += loss_2.item()
                 count += 1
