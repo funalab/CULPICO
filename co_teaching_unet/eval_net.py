@@ -15,6 +15,8 @@ import os
 def eval_mcd( device, test_list, model=None, model_2=None, net_g=None, net_s=None, net_s_another=None, raw=False, logfilePath=None):
 
     IoU_list = []
+    precision_list = []
+    recall_list = []
 
     tf = transforms.Compose([
                 transforms.ToPILImage(),
@@ -69,8 +71,12 @@ def eval_mcd( device, test_list, model=None, model_2=None, net_g=None, net_s=Non
 
 
         tmp_IoU = iou_pytorch(inf, gt, device)
+        tmp_precision, tmp_recall = precision_recall_pytorch(inf, gt, device)
 
         IoU_list.append(tmp_IoU.to('cpu').item())
+        precision_list.append(tmp_precision.to('cpu').item())
+        recall_list.append(tmp_recall.to('cpu').item())
+
     #各画像のIoUを出力
     """
     if logfilePath != None:
@@ -80,7 +86,7 @@ def eval_mcd( device, test_list, model=None, model_2=None, net_g=None, net_s=Non
                 f.write(f'{i:0>3}, {imgIoU}\n')
             f.write('\n')
     """
-    return IoU_list
+    return IoU_list, precision_list, recall_list
 
 
 def get_args():
@@ -96,17 +102,17 @@ def get_args():
                         help='cell name', dest='cell')
     parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
                         help='gpu_num?', dest='gpu_num')
-    parser.add_argument('-raw', '--raw-unet', type=bool, nargs='?', default=0,
+    parser.add_argument('-raw', '--raw-unet', type=int, nargs='?', default=0,
                         help='train raw unet?', dest='raw_mode')
     parser.add_argument('-scaling', '--scaling-type', type=str, nargs='?', default='unet',
                         help='scaling type?', dest='scaling_type')
-    parser.add_argument('-test', '--test-only', type=bool, nargs='?', default=1,
+    parser.add_argument('-test', '--test-only', type=int, nargs='?', default=1,
                         help='eval testset only??', dest='test_only')
-    parser.add_argument('-all', '--all-cells', type=bool, nargs='?', default=0,
+    parser.add_argument('-all', '--all-cells', type=int, nargs='?', default=0,
                         help='inference the model by all cells??', dest='all_cells')
-    parser.add_argument('-term1', type=bool, nargs='?', default=0,
+    parser.add_argument('-term1', type=int, nargs='?', default=0,
                         help='inference model from term1?', dest='term1')
-    parser.add_argument('-coteaching', type=bool, nargs='?', default=0,
+    parser.add_argument('-coteaching', type=int, nargs='?', default=0,
                         help='inference co_teaching model?', dest='coteaching')
 
     return parser.parse_args()
@@ -138,6 +144,7 @@ if __name__ == '__main__':
             #net.load_state_dict( checkPoint )
             net.to(device=device)
             net.eval()
+            net_2 = None
 
         net_g=None; net_s1=None; net_s2=None
 
@@ -216,6 +223,7 @@ if __name__ == '__main__':
     #net_s_another=net_s2,
 
     if args.all_cells:
+    # 全細胞種についてinference
         with open(path_w, mode='w') as f:
             f.write(f'inference all cells, model:{args.checkpoint}\n')
 
@@ -229,7 +237,8 @@ if __name__ == '__main__':
             testFiles = sorted( glob.glob(f'{testDir}/{cell_name}/*'), key=natural_keys )
             tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
 
-            IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+            # net_g=None; net_s1=None; net_s2=None
+            IoU, precision, recall = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
             
             with open(path_w, mode='a') as f:
                 #各精度に対応するファイル名を出力
@@ -238,8 +247,11 @@ if __name__ == '__main__':
                 
                 #f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
                 f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
+                f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
 
     else:
+    # 指定した細胞種のみinference
         with open(path_w, mode='w') as f:
             f.write(f'inference single cell({args.cell}, \n model:{args.checkpoint})\n')
         testFiles = sorted( glob.glob(f'{testDir}/*'), key=natural_keys )
@@ -249,16 +261,46 @@ if __name__ == '__main__':
             IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=None, raw=args.raw_mode , logfilePath=path_w)
         else:
             # normal unet or co-teaching model
-            IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+            if args.coteaching:
+                # net1
+                IoU, precision, recall = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                with open(path_w, mode='a') as f:
+                    f.write('----inference net_1----\n')
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                    f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
+                    f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
+
+                # net2
+                IoU, precision, recall = eval_mcd( device, tests, model=net_2, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                with open(path_w, mode='a') as f:
+                    f.write('----inference net_2----\n')
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                    f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
+                    f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
+
+                # ensemble of net1 & net2
+                IoU, precision, recall = eval_mcd( device, tests, model=net, model_2=net_2, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                with open(path_w, mode='a') as f:
+                    f.write('----inference emsemble net_1_2----\n')
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                    f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
+                    f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
+
+            else:
+                IoU, precision, recall = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                with open(path_w, mode='a') as f:
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                    f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
+                    f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
         
         #img_result, img_merge = segment(seg_shsy5y, net_g=net_g, net_s=net_s1, use_mcd=1)
         
-        with open(path_w, mode='a') as f:
-            for i, filename in enumerate(testFiles):
-                f.write('{}:{}\n'.format( i, filename ))
+        #with open(path_w, mode='a') as f:
+        #    for i, filename in enumerate(testFiles):
+        #        f.write('{}:{}\n'.format( i, filename ))
                 
             #f.write('Dice : {: .04f} +-{: .04f}\n'.format(statistics.mean(Dice), statistics.stdev(Dice)))
-            f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+        #    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
 
         #io.imsave(f'{dir_imgs}/input.tif', imgSet[-2].reshape(img.shape[-2], img.shape[-1]))
         #io.imsave(f'{dir_imgs}/result.tif', img_result)

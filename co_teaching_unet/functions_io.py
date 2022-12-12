@@ -401,18 +401,16 @@ def iou_pytorch(outputs: torch.Tensor, labels: torch.Tensor, device):
 
     SMOOTH = 1e-6
 
-
-    
     #outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
 
-    outputs = torch.where( outputs > 0.5, torch.tensor(1, dtype=torch.uint8, device=torch.device(device)), \
+    iou_outputs = torch.where( outputs > 0.5, torch.tensor(1, dtype=torch.uint8, device=torch.device(device)), \
                                             torch.tensor(0, dtype=torch.uint8, device=torch.device(device)) )
     
-    labels = labels.to(torch.uint8)
+    iou_labels = labels.to(torch.uint8)
     
 
-    intersection = (outputs & labels).float().sum()  # Will be zero if Truth=0 or Prediction=0
-    union = (outputs | labels).float().sum()         # Will be zzero if both are 0
+    intersection = (iou_outputs & iou_labels).float().sum()  # Will be zero if Truth=0 or Prediction=0
+    union = (iou_outputs | iou_labels).float().sum()         # Will be zero if both are 0
     
     iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
     
@@ -421,6 +419,31 @@ def iou_pytorch(outputs: torch.Tensor, labels: torch.Tensor, device):
     #return thresholded  # Or thresholded.mean() if you are interested in average across the batch
 
     return iou
+
+def precision_recall_pytorch(outputs: torch.Tensor, labels: torch.Tensor, device):
+    # You can comment out this line if you are passing tensors of equal shape
+    # But if you are passing output from UNet or something it will most probably
+    # be with the BATCH x 1 x H x W shape
+
+    SMOOTH = 1e-6
+    
+    #outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
+
+    pr_outputs = torch.where( outputs > 0.5, torch.tensor(1, dtype=torch.uint8, device=torch.device(device)), \
+                                            torch.tensor(0, dtype=torch.uint8, device=torch.device(device)) )
+    
+    pr_labels = labels.to(torch.uint8)
+    
+    TP = ( (pr_outputs == 1) & (pr_outputs == pr_labels) ).float().sum()
+    FP = ( (pr_outputs == 1) & (pr_outputs != pr_labels) ).float().sum()
+    FN = ( (pr_outputs == 0) & (pr_outputs != pr_labels) ).float().sum()
+    
+    precision = ( TP + SMOOTH ) / ( TP + FP + SMOOTH )
+    
+    recall = ( TP + SMOOTH ) / ( TP + FN + SMOOTH )
+
+    
+    return precision, recall
 
 
 def iou_numpy(outputs: np.array, labels: np.array):
