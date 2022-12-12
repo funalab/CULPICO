@@ -130,6 +130,7 @@ def train_net(net_1,
     source_seg_list_2 = []
     tgt_seg_list_1 = []
     tgt_seg_list_2 = []
+    jsdiv_loss_list = []
     tr_s_loss_list_C = []
     tr_s_loss_list_B = []
     tr_d_loss_list = []
@@ -185,6 +186,7 @@ def train_net(net_1,
         tgt_seg_epoch_loss_1 = 0
         tgt_seg_epoch_loss_2 = 0
         jsd_epoch_loss = 0
+        
         
         # sourceも用いる場合
         if with_source:
@@ -265,6 +267,7 @@ def train_net(net_1,
                         
                         loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2 + jsdiv
 
+                    jsd_epoch_loss += jsdiv.item()
                     
                 else:
                     pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
@@ -286,8 +289,6 @@ def train_net(net_1,
                 # net1 & net2 update!
                 opt_1.step()
                 opt_2.step()
-
-                jsd_epoch_loss += jsdiv.item()
 
                 source_seg_epoch_loss_1 += s_loss_1.item()
                 source_seg_epoch_loss_2 += s_loss_2.item()
@@ -358,6 +359,8 @@ def train_net(net_1,
                         
                         loss_total = t_loss_1 + t_loss_2 + jsdiv
 
+                    jsd_epoch_loss += jsdiv.item()
+
                 else:
                     pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
                     # crossing field
@@ -379,7 +382,6 @@ def train_net(net_1,
                 opt_1.step()
                 opt_2.step()
 
-                jsd_epoch_loss += jsdiv.item()
 
                 epoch_loss += loss_total.item()
                 #epoch_loss_1 += loss_1.item()
@@ -394,11 +396,12 @@ def train_net(net_1,
 
                 
         # epoch loss (seg & dis)
-
+        
         seg = epoch_loss / (len_train/batch_size)
         #seg_1 = epoch_loss_1 / (len_train/batch_size)
         #seg_2 = epoch_loss_2 / (len_train/batch_size)
         
+        jsdiv_loss_list.append( jsd_epoch_loss /  (len_train/batch_size) )
         
         with open(path_w, mode='a') as f:
             f.write('epoch {}: seg:{} \n'.format(epoch + 1, seg))
@@ -436,7 +439,7 @@ def train_net(net_1,
             with open(path_w, mode='a') as f:
                 f.write('seg loss 1 is update \n')            
                 
-        my_dict = { 'tr_loss_list': tr_loss_list, 'source_seg_list_1': source_seg_list_1, 'source_seg_list_2': source_seg_list_2, 'tgt_seg_list_1':tgt_seg_list_1, 'tgt_seg_list_2':tgt_seg_list_2  }
+        my_dict = { 'tr_loss_list': tr_loss_list, 'source_seg_list_1': source_seg_list_1, 'source_seg_list_2': source_seg_list_2, 'tgt_seg_list_1':tgt_seg_list_1, 'tgt_seg_list_2':tgt_seg_list_2, 'jsdiv_loss_list':jsdiv_loss_list   }
 
         with open(path_lossList, "wb") as tf:
             pickle.dump( my_dict, tf )
