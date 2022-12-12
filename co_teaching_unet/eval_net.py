@@ -133,7 +133,7 @@ if __name__ == '__main__':
             net.to(device=device)
             net.eval()
             net_2 = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
-            net.load_state_dict( checkPoint['best_net2'] )
+            net_2.load_state_dict( checkPoint['best_net2'] )
             net_2.to(device=device)
             net_2.eval()
         else:
