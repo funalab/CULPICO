@@ -114,12 +114,19 @@ def get_args():
                         help='inference model from term1?', dest='term1')
     parser.add_argument('-coteaching', type=int, nargs='?', default=0,
                         help='inference co_teaching model?', dest='coteaching')
+    parser.add_argument('-ensemble', type=int, nargs='?', default=0,
+                        help='inference co_teaching model?', dest='ensem')
+    parser.add_argument('-c2', '--checkpoint2', metavar='C', type=str, nargs='?', default=None,
+                        help='the path of segmenter', dest='checkpoint2')
 
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
-    device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu_num}'
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    #device = torch.device('cuda:{}'.format(args.gpu_num) if torch.cuda.is_available() else 'cpu')
 
     checkPoint = torch.load( args.checkpoint, map_location=device )
     net_2 = None
@@ -136,6 +143,18 @@ if __name__ == '__main__':
             net_2.load_state_dict( checkPoint['best_net2'] )
             net_2.to(device=device)
             net_2.eval()
+        
+        elif args.ensem:
+            net = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net.load_state_dict( checkPoint['best_net'] )
+            net.to(device=device)
+            net.eval()
+            checkPoint2 = torch.load( args.checkpoint2, map_location=device )
+            net_2 = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
+            net_2.load_state_dict( checkPoint2['best_net'] )
+            net_2.to(device=device)
+            net_2.eval()
+
         else:
             # load U-Net
             net = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
@@ -259,6 +278,7 @@ if __name__ == '__main__':
         if args.term1:
             # generator & segmenter from term2
             IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=None, raw=args.raw_mode , logfilePath=path_w)
+
         else:
             # normal unet or co-teaching model
             if args.coteaching:
@@ -285,8 +305,19 @@ if __name__ == '__main__':
                     f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
                     f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
                     f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
+            
+            elif args.ensem:
+                # args.checlpoint2 necessary
+                # ensemble of net1 & net2
+                IoU, precision, recall = eval_mcd( device, tests, model=net, model_2=net_2, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                with open(path_w, mode='a') as f:
+                    f.write('----inference emsemble net_1_2----\n')
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                    f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
+                    f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
 
             else:
+                # normal unet
                 IoU, precision, recall = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
                 with open(path_w, mode='a') as f:
                     f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
