@@ -214,7 +214,9 @@ if __name__ == '__main__':
     
     seg_shsy5y = []
     #imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/shsy5y/test_set_128'
-    imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/mcf7/test_set_56'
+    #imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/mcf7/test_set_56'
+    imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/a172/test_set_30'
+    
     filepathList = glob.glob(f'{imgsDir}/*')
 
     cut=1; test=1;
