@@ -17,6 +17,7 @@ import random
 from torchvision.transforms import functional as tvf
 import copy
 import re
+import math
 
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -205,11 +206,22 @@ def draw_graph( save_dir, graph_name, epochs, red_list=None, red_label=None, blu
         graph = plt.figure()
         if red_list != None:
             plt.plot(range(epochs), red_list, 'r-', label=red_label )
+            if y_max < max(red_list):
+                y_max = max(red_list)
         if blue_list != None:
             plt.plot(range(epochs), blue_list, 'b-', label=blue_label )
+            if y_max < max(blue_list):
+                y_max = max(blue_list)
         if green_list != None:
             plt.plot(range(epochs), green_list, 'g-', label=green_label )
+            if y_max < max(green_list):
+                y_max = max(green_list)
         plt.legend()
+
+        # 0.5間隔でrange設定
+        ylim_max = math.ceil(y_max)-0.5 if math.ceil(y_max) - y_max > 0.5 else math.ceil(y_max)
+        plt.ylim(0, ylim_max)
+
         plt.xlabel( x_label )
         plt.ylabel( y_label )
         plt.grid()
