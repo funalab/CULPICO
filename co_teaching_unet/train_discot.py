@@ -76,14 +76,15 @@ def train_net(net_1,
     
     sourceDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{source}'
     targetDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{target}'
-    #load train images
+    # load train images
     trsourceFiles = glob.glob(f'{sourceDir}/train/*')
+    ## cat_train = train & val
     trtargetFiles = glob.glob(f'{targetDir}/cat_train/*')
 
     trains_s = create_trainlist( trsourceFiles, scaling_type )
     trains_t = create_trainlist( trtargetFiles, scaling_type )
 
-    #train: (520, 704)->(560, 784)
+    # train: (520, 704)->(560, 784)
     for k in trains_s:
         k[0] = mirror_padding( k[0], 560, 784 )
         k[1] = mirror_padding( k[1], 560, 784 )
@@ -92,13 +93,15 @@ def train_net(net_1,
         k[1] = mirror_padding( k[1], 560, 784 )
     # adjust len(train_s) == len(train_t)
     if len( trains_s ) > len( trains_t ):
-        d = len( trains_s ) - len( trains_t )
-        trains_t.extend( trains_t[:d] )
+        diff_s_t = len( trains_s ) - len( trains_t )
+        len_train = len( trains_s )
+        source_extend = False
     else:
-        d = len( trains_t ) - len( trains_s )
-        trains_s.extend( trains_s[:d] )
+        diff_s_t = len( trains_t ) - len( trains_s )
+        len_train = len( trains_t )
+        source_extend = True
+        
             
-    len_train = len( trains_t )
     # load val images
     #valsourceFiles = glob.glob( f'{sourceDir}/val/*' )
     valtargetFiles = glob.glob( f'{targetDir}/val/*' )
@@ -164,10 +167,18 @@ def train_net(net_1,
         train_t = []
         
         if with_source:
+            # adjust num of source & target data
+            if source_extend:
+                trains_s.extend( random.sample( trains_s, diff_s_t ) )
+            # random cropping source from mirror pad. img
             for train_img_list in trains_s:
                 train_s.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
             random.shuffle( train_s )
-            
+        
+        # adjust num of source & target data
+        if not source_extend:
+            trains_t.extend( random.sample( trains_t, diff_s_t ) )
+        # random cropping target from mirror pad. img
         for train_img_list in trains_t:
             train_t.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
         random.shuffle( train_t )

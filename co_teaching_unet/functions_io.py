@@ -17,6 +17,7 @@ import random
 from torchvision.transforms import functional as tvf
 import copy
 import re
+import math
 
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -186,8 +187,7 @@ def scaling_image(image):
         with np.errstate(all='raise'):
             image = (image - image.min()) / (image.max() - image.min())
     except (ZeroDivisionError, FloatingPointError):
-        if image_name:
-            print('empty image file : ' + str(image_name))
+        print("error!")
 
     return image
 
@@ -205,11 +205,22 @@ def draw_graph( save_dir, graph_name, epochs, red_list=None, red_label=None, blu
         graph = plt.figure()
         if red_list != None:
             plt.plot(range(epochs), red_list, 'r-', label=red_label )
+            if y_max < max(red_list):
+                y_max = max(red_list)
         if blue_list != None:
             plt.plot(range(epochs), blue_list, 'b-', label=blue_label )
+            if y_max < max(blue_list):
+                y_max = max(blue_list)
         if green_list != None:
             plt.plot(range(epochs), green_list, 'g-', label=green_label )
+            if y_max < max(green_list):
+                y_max = max(green_list)
         plt.legend()
+
+        # 0.5間隔でrange設定
+        ylim_max = math.ceil(y_max)-0.5 if math.ceil(y_max) - y_max > 0.5 else math.ceil(y_max)
+        plt.ylim(0, ylim_max)
+
         plt.xlabel( x_label )
         plt.ylabel( y_label )
         plt.grid()
@@ -580,6 +591,49 @@ def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
                     pass
         
     return trains
+
+def create_testlist(setList, scaling_type='unet'):
+    # specified for inferencing 520x704 by 272x352
+    # scalingtype = "all" is forbidden
+    tests = []
+    max_intensity = 0
+    min_intensity = 2 ** 16 - 1
+    
+    for setPath in setList:
+        imgSet = [[0] * 2 for i in range(4)]
+        
+        filepathList = glob.glob(f"{setPath}/*")
+        
+        for filePath in filepathList:
+            
+            img = io.imread( filePath )
+            if 'Phase' in filePath:
+                max_intensity = max(max_intensity, img.max())
+                min_intensity = min(min_intensity, img.min())
+                
+                if scaling_type == "unet":
+                    img = scaling_image(img)
+                    img = img - np.median(img)
+                elif scaling_type == "standard":
+                    img = standardize_image(img)
+                elif scaling_type == "normal":
+                    img = scaling_image(img)
+                
+                imgSet[0][0] = img[0:272, 0:352].reshape([1, 272, 352])
+                imgSet[1][0] = img[0:272, 352:704].reshape([1, 272, 352])
+                imgSet[2][0] = img[248:520, 0:352].reshape([1, 272, 352])
+                imgSet[3][0] = img[248:520, 352:704].reshape([1, 272, 352])
+                
+            else:
+                img = img / 255
+                imgSet[0][1] = img[0:272, 0:352].reshape([1, 272, 352])
+                imgSet[1][1] = img[0:272, 352:704].reshape([1, 272, 352])
+                imgSet[2][1] = img[248:520, 0:352].reshape([1, 272, 352])
+                imgSet[3][1] = img[248:520, 352:704].reshape([1, 272, 352])
+
+        tests.append(imgSet)
+
+    return tests
 
 def create_uncer_pseudo( p1, p2, device='cpu' ):
 
