@@ -26,50 +26,178 @@ def eval_mcd( device, test_list, model=None, model_2=None, net_g=None, net_s=Non
 
     for i, image in enumerate(test_list):
 
-        img = torch.from_numpy(image[0]).unsqueeze(0).cuda(device)
-        gt = torch.from_numpy(image[1][0]).cuda(device)
+        # left, right, up, down
+        # input dim = 3
+        img_left_up = torch.from_numpy(image[0][0]).unsqueeze(0).cuda(device)
+        img_right_up = torch.from_numpy(image[1][0]).unsqueeze(0).cuda(device)
+        img_left_down = torch.from_numpy(image[2][0]).unsqueeze(0).cuda(device)
+        img_right_down = torch.from_numpy(image[3][0]).unsqueeze(0).cuda(device)
+        # output & ground truth dim = 2
+        gt_left_up = torch.from_numpy(image[0][1][0]).cuda(device)
+        gt_right_up = torch.from_numpy(image[1][1][0]).cuda(device)
+        gt_left_down = torch.from_numpy(image[2][1][0]).cuda(device)
+        gt_right_down = torch.from_numpy(image[3][1][0]).cuda(device)
+        ## gt concat
+        gt_left = torch.cat( (gt_left_up[0:260,], gt_left_down[12:,]), dim=0 )
+        gt_right = torch.cat( (gt_right_up[0:260,], gt_right_down[12:,]), dim=0 )
+        gt = torch.cat( (gt_left, gt_right), dim=1 )
+
     
         with torch.no_grad():
             if raw:
                 if model_2 == None:
-                    mask = model(img)
-
-                    mask_prob = torch.sigmoid(mask).squeeze(0)
-                    mask_prob = tf(mask_prob.cuda(device))
-                    inf = mask_prob.squeeze().cuda(device)
+                    mask_lu = model(img_left_up)
+                    mask_ru = model(img_right_up)
+                    mask_ld = model(img_left_down)
+                    mask_rd = model(img_right_down)
+                    #mask = model(img)
+                    # lu
+                    mask_prob_lu = torch.sigmoid(mask_lu).squeeze(0)
+                    mask_prob_lu = tf(mask_prob_lu.cuda(device))
+                    inf_lu = mask_prob_lu.squeeze().cuda(device)
+                    # ru
+                    mask_prob_ru = torch.sigmoid(mask_ru).squeeze(0)
+                    mask_prob_ru = tf(mask_prob_ru.cuda(device))
+                    inf_ru = mask_prob_ru.squeeze().cuda(device)
+                    # ld
+                    mask_prob_ld = torch.sigmoid(mask_ld).squeeze(0)
+                    mask_prob_ld = tf(mask_prob_ld.cuda(device))
+                    inf_ld = mask_prob_ld.squeeze().cuda(device)
+                    # rd 
+                    mask_prob_rd = torch.sigmoid(mask_rd).squeeze(0)
+                    mask_prob_rd = tf(mask_prob_rd.cuda(device))
+                    inf_rd = mask_prob_rd.squeeze().cuda(device)
+                    #mask_prob = torch.sigmoid(mask).squeeze(0)
+                    #mask_prob = tf(mask_prob.cuda(device))
+                    #inf = mask_prob.squeeze().cuda(device)
                 else:
-                    mask = model(img)
-                    mask_2 = model_2(img)
+                    mask_lu = model(img_left_up)
+                    mask_lu_2 = model_2(img_left_up)
+                    mask_ru = model(img_right_up)
+                    mask_ru_2 = model_2(img_right_up)
+                    mask_ld = model(img_left_down)
+                    mask_ld_2 = model_2(img_left_down)
+                    mask_rd = model(img_right_down)
+                    mask_rd_2 = model_2(img_right_down)
+                    #mask = model(img)
+                    #mask_2 = model_2(img)
 
-                    mask_prob = torch.sigmoid(mask).squeeze(0)
-                    mask_prob = tf(mask_prob.cuda(device))
+                    # lu
+                    mask_prob_lu = torch.sigmoid(mask_lu).squeeze(0)
+                    mask_prob_lu = tf(mask_prob_lu.cuda(device))
+                    mask_prob_lu_2 = torch.sigmoid(mask_lu_2).squeeze(0)
+                    mask_prob_lu_2 = tf(mask_prob_lu_2.cuda(device))
+                    mask_prob_lu = ( mask_prob_lu + mask_prob_lu_2 ) * 0.5                   
+                    inf_lu = mask_prob_lu.squeeze().cuda(device)
 
-                    mask_prob_2 = torch.sigmoid(mask_2).squeeze(0)
-                    mask_prob_2 = tf(mask_prob_2.cuda(device))
+                    # ru
+                    mask_prob_ru = torch.sigmoid(mask_ru).squeeze(0)
+                    mask_prob_ru = tf(mask_prob_ru.cuda(device))
+                    mask_prob_ru_2 = torch.sigmoid(mask_ru_2).squeeze(0)
+                    mask_prob_ru_2 = tf(mask_prob_ru_2.cuda(device))
+                    mask_prob_ru = ( mask_prob_ru + mask_prob_ru_2 ) * 0.5                   
+                    inf_ru = mask_prob_ru.squeeze().cuda(device)
 
-                    mask_prob = ( mask_prob + mask_prob_2 ) / 2
-                    
-                    inf = mask_prob.squeeze().cuda(device)
+                    # ld
+                    mask_prob_ld = torch.sigmoid(mask_ld).squeeze(0)
+                    mask_prob_ld = tf(mask_prob_ld.cuda(device))
+                    mask_prob_ld_2 = torch.sigmoid(mask_ld_2).squeeze(0)
+                    mask_prob_ld_2 = tf(mask_prob_ld_2.cuda(device))
+                    mask_prob_ld = ( mask_prob_ld + mask_prob_ld_2 ) * 0.5                   
+                    inf_ld = mask_prob_ld.squeeze().cuda(device)
+
+                    # rd
+                    mask_prob_rd = torch.sigmoid(mask_rd).squeeze(0)
+                    mask_prob_rd = tf(mask_prob_rd.cuda(device))
+                    mask_prob_rd_2 = torch.sigmoid(mask_rd_2).squeeze(0)
+                    mask_prob_rd_2 = tf(mask_prob_rd_2.cuda(device))
+                    mask_prob_rd = ( mask_prob_rd + mask_prob_rd_2 ) * 0.5                   
+                    inf_rd = mask_prob_rd.squeeze().cuda(device)
+
+                    #mask_prob = torch.sigmoid(mask).squeeze(0)
+                    #mask_prob = tf(mask_prob.cuda(device))
+                    #mask_prob_2 = torch.sigmoid(mask_2).squeeze(0)
+                    #mask_prob_2 = tf(mask_prob_2.cuda(device))
+                    #mask_prob = ( mask_prob + mask_prob_2 ) / 2                    
+                    #inf = mask_prob.squeeze().cuda(device)
 
             else:
-                feat = net_g(img)
-                mask = net_s(*feat)
-                mask_prob = torch.sigmoid(mask).squeeze(0)
-                mask_prob = tf(mask_prob.cuda(device))
+                # lu
+                feat_lu = net_g(img_left_up)
+                mask_lu = net_s(*feat_lu)
+                mask_prob_lu = torch.sigmoid(mask_lu).squeeze(0)
+                mask_prob_lu = tf(mask_prob_lu.cuda(device))
+                # ru
+                feat_ru = net_g(img_right_up)
+                mask_ru = net_s(*feat_ru)
+                mask_prob_ru = torch.sigmoid(mask_ru).squeeze(0)
+                mask_prob_ru = tf(mask_prob_ru.cuda(device))
+                # ld
+                feat_ld = net_g(img_left_down)
+                mask_ld = net_s(*feat_ld)
+                mask_prob_ld = torch.sigmoid(mask_ld).squeeze(0)
+                mask_prob_ld = tf(mask_prob_ld.cuda(device))
+                #rd
+                feat_rd = net_g(img_right_down)
+                mask_rd = net_s(*feat_rd)
+                mask_prob_rd = torch.sigmoid(mask_rd).squeeze(0)
+                mask_prob_rd = tf(mask_prob_rd.cuda(device))
+
+                #feat = net_g(img)
+                #mask = net_s(*feat)
+                #mask_prob = torch.sigmoid(mask).squeeze(0)
+                #mask_prob = tf(mask_prob.cuda(device))
                 
                 if net_s_another == None:
-                    inf = mask_prob.squeeze().cuda(device)
+                    inf_lu = mask_prob_lu.squeeze().cuda(device)
+                    inf_ru = mask_prob_ru.squeeze().cuda(device)
+                    inf_ld = mask_prob_ld.squeeze().cuda(device)
+                    inf_rd = mask_prob_rd.squeeze().cuda(device)
                 else:
-                    mask_ano = net_s_another(*feat)
-                    mask_prob_ano = torch.sigmoid(mask_ano).squeeze(0)
-                    mask_prob_ano = tf( mask_prob_ano.cuda(device) )
+                    # lu
+                    mask_ano_lu = net_s_another(*feat_lu)
+                    mask_prob_ano_lu = torch.sigmoid(mask_ano_lu).squeeze(0)
+                    mask_prob_ano_lu = tf( mask_prob_ano_lu.cuda(device) )
+                    inf_s1_lu = mask_prob_lu.squeeze().cuda(device)
+                    inf_s2_lu = mask_prob_ano_lu.squeeze().cuda(device)
+                    inf_lu = (inf_s1_lu + inf_s2_lu) * 0.5
+                    
+                    # ru
+                    mask_ano_ru = net_s_another(*feat_ru)
+                    mask_prob_ano_ru = torch.sigmoid(mask_ano_ru).squeeze(0)
+                    mask_prob_ano_ru = tf( mask_prob_ano_ru.cuda(device) )
+                    inf_s1_ru = mask_prob_ru.squeeze().cuda(device)
+                    inf_s2_ru = mask_prob_ano_ru.squeeze().cuda(device)
+                    inf_ru = (inf_s1_ru + inf_s2_ru) * 0.5
+                    
+                    # ld
+                    mask_ano_ld = net_s_another(*feat_ld)
+                    mask_prob_ano_ld = torch.sigmoid(mask_ano_ld).squeeze(0)
+                    mask_prob_ano_ld = tf( mask_prob_ano_ld.cuda(device) )
+                    inf_s1_ld = mask_prob_ld.squeeze().cuda(device)
+                    inf_s2_ld = mask_prob_ano_ld.squeeze().cuda(device)
+                    inf_ld = (inf_s1_ld + inf_s2_ld) * 0.5
 
-                    inf_s1 = mask_prob.squeeze().cuda(device)
-                    inf_s2 = mask_prob_ano.squeeze().cuda(device)
+                    # rd
+                    mask_ano_rd = net_s_another(*feat_rd)
+                    mask_prob_ano_rd = torch.sigmoid(mask_ano_rd).squeeze(0)
+                    mask_prob_ano_rd = tf( mask_prob_ano_rd.cuda(device) )
+                    inf_s1_rd = mask_prob_rd.squeeze().cuda(device)
+                    inf_s2_rd = mask_prob_ano_rd.squeeze().cuda(device)
+                    inf_rd = (inf_s1_rd + inf_s2_rd) * 0.5
+                    
 
-                    inf = (inf_s1 + inf_s2) /2
-
-
+                    #mask_ano = net_s_another(*feat)
+                    #mask_prob_ano = torch.sigmoid(mask_ano).squeeze(0)
+                    #mask_prob_ano = tf( mask_prob_ano.cuda(device) )
+                    #inf_s1 = mask_prob.squeeze().cuda(device)
+                    #inf_s2 = mask_prob_ano.squeeze().cuda(device)
+                    #inf = (inf_s1 + inf_s2) /2
+        
+        ## inf concat
+        inf_left = torch.cat( (inf_lu[0:260,], inf_ld[12:,]), dim=0 )
+        inf_right = torch.cat( (inf_ru[0:260,], inf_rd[12:,]), dim=0 )
+        inf = torch.cat( (inf_left, inf_right), dim=1 )
         tmp_IoU = iou_pytorch(inf, gt, device)
         tmp_precision, tmp_recall = precision_recall_pytorch(inf, gt, device)
 
@@ -199,39 +327,13 @@ if __name__ == '__main__':
         # eval testset only
         testDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/{args.cell}'
     else:
-        # eval all target data
+        # eval all train and val data
         testDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{args.cell}/cat_train'
     
 
     testFiles = sorted( glob.glob(f'{testDir}/*'), key=natural_keys )
-    tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
+    tests = create_testlist( testFiles, scaling_type=args.scaling_type )
     
-    seg_shsy5y = []
-    imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/shsy5y/test_set_128'
-    filepathList = glob.glob(f'{imgsDir}/*')
-
-    cut=1; test=1;
-    imgSet = [0] * 2
-    for filePath in filepathList:
-        img = io.imread( filePath )
-        if 'Phase' in filePath:
-
-            if args.scaling_type == "unet":
-                img = scaling_image(img)
-                img = img - np.median(img)
-            elif args.scaling_type == "standard":
-                img = standardize_image(img)
-            elif args.scaling_type == "normal":
-                img = scaling_image(img)
-            
-            if cut: img = img[130:390, 176:528]
-            imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
- 
-        else:
-            img = img / 255
-            if cut: img = img[130:390, 176:528]
-            imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
-    seg_shsy5y.append(imgSet)
 
     # create the result file
     dir_result = './infResult/eval_{}_fk{}'.format( args.out_dir, args.first_num_of_kernels )
@@ -239,7 +341,7 @@ if __name__ == '__main__':
     os.makedirs( dir_result, exist_ok=True )
     os.makedirs( dir_imgs, exist_ok=True )
     path_w = f'{dir_result}/evaluation.txt'
-    #net_s_another=net_s2,
+
 
     if args.all_cells:
     # 全細胞種についてinference
@@ -254,7 +356,7 @@ if __name__ == '__main__':
                 f.write(f'----inference {cell_name}----\n')
 
             testFiles = sorted( glob.glob(f'{testDir}/{cell_name}/*'), key=natural_keys )
-            tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
+            tests = create_testlist( testFiles, scaling_type=args.scaling_type )
 
             # net_g=None; net_s1=None; net_s2=None
             IoU, precision, recall = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
@@ -274,7 +376,7 @@ if __name__ == '__main__':
         with open(path_w, mode='w') as f:
             f.write(f'inference single cell({args.cell}, \n model:{args.checkpoint})\n')
         testFiles = sorted( glob.glob(f'{testDir}/*'), key=natural_keys )
-        tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
+        tests = create_testlist( testFiles, scaling_type=args.scaling_type )
         if args.term1:
             # generator & segmenter from term2
             IoU = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=None, raw=args.raw_mode , logfilePath=path_w)
