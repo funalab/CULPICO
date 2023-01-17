@@ -410,6 +410,23 @@ if __name__ == '__main__':
             
             elif args.ensem:
                 # args.checlpoint2 necessary
+
+                # net1
+                IoU, precision, recall = eval_mcd( device, tests, model=net, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                with open(path_w, mode='a') as f:
+                    f.write('----inference net_1----\n')
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                    f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
+                    f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
+
+                # net2
+                IoU, precision, recall = eval_mcd( device, tests, model=net_2, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
+                with open(path_w, mode='a') as f:
+                    f.write('----inference net_2----\n')
+                    f.write('IoU : {: .04f} +-{: .04f}\n'.format(statistics.mean(IoU), statistics.stdev(IoU)))
+                    f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision), statistics.stdev(precision)))
+                    f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
+                    
                 # ensemble of net1 & net2
                 IoU, precision, recall = eval_mcd( device, tests, model=net, model_2=net_2, net_g=net_g, net_s=net_s1, net_s_another=net_s2, raw=args.raw_mode , logfilePath=path_w)
                 with open(path_w, mode='a') as f:
