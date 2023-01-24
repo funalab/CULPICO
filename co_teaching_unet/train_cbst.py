@@ -588,7 +588,7 @@ if __name__ == '__main__':
     dir_result = './tr{}Result/{}{}'.format(key, args.out_dir, stepkey)
     dir_checkpoint = '{}/checkpoint{}'.format(dir_result, key)
     current_graphs = f'./graphs{key}'
-    dir_graphs = '{}/{}'.format(current_graphs, args.out_dir)
+    dir_graphs = '{}/{}{}'.format(current_graphs, args.out_dir, stepkey)
     os.makedirs(dir_result, exist_ok=True)
     os.makedirs(dir_checkpoint, exist_ok=True)
     os.makedirs(current_graphs, exist_ok=True)
