@@ -288,6 +288,7 @@ if __name__ == '__main__':
             net = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
             #print( checkPoint.keys() )
             net.load_state_dict( checkPoint['best_net'] )
+            #net.load_state_dict( checkPoint['best_net1'] )
             #net.load_state_dict( checkPoint )
             net.to(device=device)
             net.eval()
