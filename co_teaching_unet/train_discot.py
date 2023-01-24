@@ -52,7 +52,8 @@ def train_net(net_1,
               with_source=0,
               mode = 'discrepancy',
               c_conf = 1,
-              metric ='kl'):
+              metric ='kl',
+              nosave = 0):
 
     # resultfile & losslist
     path_w = f"{dir_result}output.txt"
@@ -141,6 +142,8 @@ def train_net(net_1,
     tr_d_loss_list_B = []
     val_iou_t_main_list = []
     valdice_list = []
+    val_iou_t1_list = []
+    val_iou_t2_list = []
     min_val_s_loss_1 = 10000.0;
     min_val_s_loss_2 = 10000.0;
     min_val_d_loss = 10000.0;
@@ -427,30 +430,71 @@ def train_net(net_1,
         tgt_seg_list_1.append(tgt_seg_epoch_loss_1/(len_train/batch_size))
         tgt_seg_list_2.append(tgt_seg_epoch_loss_2/(len_train/batch_size))
 
-        already = False
-        if seg < min_val_s_loss_1:
-            min_val_s_loss_1 = seg
-            
-            s_bestepoch = epoch + 1
-     
-            best_net1 = net_1.state_dict()
-            best_net2 = net_2.state_dict()
-            
-            best_opt1 = opt_1.state_dict()
-            best_opt2 = opt_2.state_dict()
-            
-            torch.save({
-                'best_net1' : best_net1,
-                'best_net2' : best_net2,
-                'opt_net1' : best_opt1,
-                'opt_net2' : best_opt2,
-            }, '{}CP_min_segloss1_e{}'.format(dir_checkpoint, epoch+1))
+        #---- Val section
+        ####################################################################################
+        val_iou_t1 = 0
+        val_iou_t2 = 0
+        with torch.no_grad():
 
-            already = True
-            with open(path_w, mode='a') as f:
-                f.write('seg loss 1 is update \n')            
+            for k, bt in enumerate(val_t):
+                ###
+                img_t = np.array(bt[0]).astype(np.float32)
+                img_t = img_t.reshape([1, img_t.shape[-2], img_t.shape[-1]])
+                img_t =  torch.from_numpy(img_t).unsqueeze(0).cuda(device)
+                ###
+                mask = np.array(bt[1]).astype(np.float32)
+                mask = mask.reshape([1, mask.shape[-2], mask.shape[-1]])
+                mask = torch.from_numpy(mask).unsqueeze(0).cuda(device)
+                mask_flat = mask.view(-1)
+                ####
                 
-        my_dict = { 'tr_loss_list': tr_loss_list, 'source_seg_list_1': source_seg_list_1, 'source_seg_list_2': source_seg_list_2, 'tgt_seg_list_1':tgt_seg_list_1, 'tgt_seg_list_2':tgt_seg_list_2, 'jsdiv_loss_list':jsdiv_loss_list   }
+                #s1,s2 output----------------
+                mask_pred_1 = net_1(img_t)
+                mask_pred_2 = net_2(img_t)
+
+                mask_prob_1 = torch.sigmoid(mask_pred_1)
+                mask_prob_2 = torch.sigmoid(mask_pred_2)
+                #----------------
+
+                
+                mask_bin_1 = (mask_prob_1[0] > 0.5).float()
+                mask_bin_2 = (mask_prob_2[0] > 0.5).float()
+                val_iou_t1 += iou_loss(mask_bin_1, mask.float(), device).item()
+                val_iou_t2 += iou_loss(mask_bin_2, mask.float(), device).item()
+        
+        #valdice_list.append(val_dice / len_val_s)
+        val_iou_t1_list.append( val_iou_t1 / len_val_t )
+        val_iou_t2_list.append( val_iou_t2 / len_val_t )
+        ####################################################################################
+
+        already = False
+        if  nosave:
+            with open(path_w, mode='a') as f:
+                    f.write(f'epoch{epoch} finished! \n') 
+        else:
+            if seg < min_val_s_loss_1:
+                min_val_s_loss_1 = seg
+                
+                s_bestepoch = epoch + 1
+        
+                best_net1 = net_1.state_dict()
+                best_net2 = net_2.state_dict()
+                
+                best_opt1 = opt_1.state_dict()
+                best_opt2 = opt_2.state_dict()
+                
+                torch.save({
+                    'best_net1' : best_net1,
+                    'best_net2' : best_net2,
+                    'opt_net1' : best_opt1,
+                    'opt_net2' : best_opt2,
+                }, '{}CP_min_segloss1_e{}'.format(dir_checkpoint, epoch+1))
+
+                already = True
+                with open(path_w, mode='a') as f:
+                    f.write('seg loss 1 is update \n')            
+                
+        my_dict = { 'tr_loss_list': tr_loss_list, 'source_seg_list_1': source_seg_list_1, 'source_seg_list_2': source_seg_list_2, 'tgt_seg_list_1':tgt_seg_list_1, 'tgt_seg_list_2':tgt_seg_list_2, 'jsdiv_loss_list':jsdiv_loss_list ,'val_iou_t1_list':val_iou_t1_list, 'val_iou_t2_list':val_iou_t2_list   }
 
         with open(path_lossList, "wb") as tf:
             pickle.dump( my_dict, tf )
@@ -463,6 +507,9 @@ def train_net(net_1,
     draw_graph( dir_graphs, 'loss_net1', epochs, red_list=source_seg_list_1,  red_label='source loss', green_list=tgt_seg_list_1, green_label='target loss' )
 
     draw_graph( dir_graphs, 'loss_net2', epochs, red_list=source_seg_list_2,  red_label='source loss', green_list=tgt_seg_list_2, green_label='target loss' )
+
+    draw_graph( dir_graphs, 'target_IoU', epochs, red_list=val_iou_t1_list,  red_label='net1_IoU', green_list=val_iou_t2_list,  green_label='net2_IoU', y_label='IoU' )
+
 
 
 
@@ -539,7 +586,7 @@ def get_args():
                         help='corruption rate, should be less than 1', dest='noise_rate')
     parser.add_argument('-coteaching', type=bool, nargs='?', default=1,
                         help='co_teaching or normal ?', dest='co_teaching')
-    parser.add_argument('-next', type=bool, nargs='?', default=0,
+    parser.add_argument('-next', type=int, nargs='?', default=0,
                         help='pseudolab refine & model retrain ?', dest='next')
     parser.add_argument('-wsrc', type=int, nargs='?', default=0,
                         help='train with source ?', dest='with_source')
@@ -549,6 +596,8 @@ def get_args():
                         help='discrepancy or distribution or nothing?', dest='mode')
     parser.add_argument('-metric', type=str, nargs='?', default='kl',
                         help='kl or js divergence?', dest='metric')
+    parser.add_argument('-nosave', type=int, nargs='?', default=0,
+                        help='save no model?', dest='nosave')
     
   
     return parser.parse_args()
@@ -670,7 +719,8 @@ if __name__ == '__main__':
                   with_source=args.with_source,
                   mode = args.mode,
                   c_conf=args.c_conf,
-                  metric = args.metric)
+                  metric = args.metric,
+                  nosave = args.nosave)
         
             
     except KeyboardInterrupt:

@@ -31,7 +31,8 @@ def train_raw_net(net,
                   scaling_type='unet',
                   dir_checkpoint='checkpoint/',
                   dir_result='result/',
-                  dir_graphs='graphs/'):
+                  dir_graphs='graphs/',
+                  Lcell_model=None):
 
     # resultfile & losslist
     path_w = f"{dir_result}output.txt"
@@ -67,14 +68,28 @@ def train_raw_net(net,
     # loss function
     criterion = nn.BCELoss()
 
-    # load train images
-    cellDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{cell}'    
-    trainFiles = glob.glob(f'{cellDir}/train/*')    
-    trains = create_trainlist( trainFiles, scaling_type )
-        
-    # load val images
-    valFiles = glob.glob(f'{cellDir}/val/*')
-    vals = create_trainlist( valFiles, scaling_type )
+   
+    if Lcell_model == None:
+         # load train images
+        cellDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{cell}'    
+        trainFiles = glob.glob(f'{cellDir}/train/*')    
+        trains = create_trainlist( trainFiles, scaling_type )
+        # load val images
+        valFiles = glob.glob(f'{cellDir}/val/*')
+        vals = create_trainlist( valFiles, scaling_type )
+    else:
+        trains = []
+        vals = []
+        cell_list = ['a172', 'bt474', 'bv2', 'huh7', 'mcf7', 'shsy5y', 'skbr3', 'skov3' ]
+        cell_list.remove(f'{Lcell_model}')
+        for cell_name in cell_list:
+            # load train images
+            cellDir = f'/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/train_data/{cell_name}'    
+            trainFiles = glob.glob(f'{cellDir}/train/*')
+            trains += create_trainlist( trainFiles, scaling_type )
+            # load val images
+            valFiles = glob.glob(f'{cellDir}/val/*')
+            vals = create_trainlist( valFiles, scaling_type )
 
     # train: (520, 704)->(560, 784)
     for k in trains:
@@ -101,7 +116,7 @@ def train_raw_net(net,
         f.write(f"len_val is {len_val}\n")
 
     # fix the seed
-    random.seed( 0 )
+    #random.seed( 0 )
     
     for epoch in range(epochs):
         count = 0
@@ -171,6 +186,15 @@ def train_raw_net(net,
         
         valloss_list.append(val_loss / len_val)
         valiou_list.append(val_iou / len_val)
+
+        # current cp saved
+        bestmodel = net.state_dict()
+        bestopt = optimizer.state_dict()
+        torch.save({
+                'best_net' : bestmodel,
+                'best_opt' : bestopt,
+            },'{}CP_current_{}_fk{}_b{}.pth'.format(dir_checkpoint, optimizer_method, first_num_of_kernels, batch_size))
+        
         if (val_loss / len_val) < min_val_loss:
             min_val_loss = (val_loss / len_val)
 
@@ -181,7 +205,7 @@ def train_raw_net(net,
             torch.save({
                 'best_net' : bestmodel,
                 'best_opt' : bestopt,
-            },'{}CP_{}_{}_epoch{}_fk{}_b{}.pth'.format(dir_checkpoint, cell, optimizer_method, bestepoch, first_num_of_kernels, batch_size))
+            },'{}CP_valmin_{}_fk{}_b{}.pth'.format(dir_checkpoint, optimizer_method, first_num_of_kernels, batch_size))
 
             with open( path_w, mode='a' ) as f:  
                 f.write('best model is updated !\n')
