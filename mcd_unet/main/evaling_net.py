@@ -138,18 +138,18 @@ def get_args():
                         help='cell name', dest='cell')
     parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
                         help='gpu_num?', dest='gpu_num')
-    parser.add_argument('-raw', '--raw-unet', type=bool, nargs='?', default=0,
+    parser.add_argument('-raw', '--raw-unet', type=int, nargs='?', default=0,
                         help='train raw unet?', dest='raw_mode')
     parser.add_argument('-scaling', '--scaling-type', type=str, nargs='?', default='unet',
                         help='scaling type?', dest='scaling_type')
-    parser.add_argument('-test', '--test-only', type=bool, nargs='?', default=1,
+    parser.add_argument('-test', '--test-only', type=int, nargs='?', default=1,
                         help='eval testset only??', dest='test_only')
-    parser.add_argument('-all', '--all-cells', type=bool, nargs='?', default=0,
+    parser.add_argument('-all', '--all-cells', type=int, nargs='?', default=0,
                         help='inference the model by all cells??', dest='all_cells')
     parser.add_argument('-seg',  type=int, nargs='?', default=0,
                         help='seg hozon??', dest='seg')
     parser.add_argument('-ensem',  type=int, nargs='?', default=0,
-                        help='seg hozon??', dest='ensem')
+                        help='ensem 2 net??', dest='ensem')
 
     return parser.parse_args()
 
@@ -213,6 +213,14 @@ if __name__ == '__main__':
     tests = create_trainlist( testFiles, scaling_type=args.scaling_type, test=1, cut=1 )
     
     seg_shsy5y = []
+
+    if args.cell == 'shsy5y':
+        imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/shsy5y/test_set_128'
+    elif args.cell == 'mcf7':
+        imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/mcf7/test_set_56'
+    elif args.cell == 'huh7':
+        #imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/huh7/test_set_98'
+        imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/huh7/test_set_122'
     #imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/shsy5y/test_set_128'
     #imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/mcf7/test_set_56'
     #imgsDir='/home/miyaki/unsupdomaada_for_semaseg_of_cell_images/LIVECell_dataset/test_data/a172/test_set_30'
