@@ -198,8 +198,7 @@ if __name__ == '__main__':
         net_s2.load_state_dict( checkPoint['best_s2'] )
         net_s2.to(device=device)
         net_s2.eval()
-
-        net=None
+        net=None; net_2=None
 
     if args.test_only:
         # eval testset only
