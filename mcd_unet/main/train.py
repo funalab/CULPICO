@@ -171,6 +171,7 @@ def train_net(net_g,
 
     # fix the seed
     #random.seed( 0 )
+    len_trs = len(trains_s)
 
     for epoch in range(epochs):
 
@@ -181,7 +182,13 @@ def train_net(net_g,
 
         # adjust num of source & target data
         if source_extend:
-            trains_s.extend( random.sample( trains_s, diff_s_t ) )
+            if diff_s_t > len_trs:
+                diff_s_t_2 = diff_s_t - len_trs
+                tmps = trains_s.copy()
+                trains_s.extend( tmps )
+                trains_s.extend( random.sample( trains_s, diff_s_t_2 ) )
+            else:
+                trains_s.extend( random.sample( trains_s, diff_s_t ) )    
         else:
             trains_t.extend( random.sample( trains_t, diff_s_t ) )
         # random cropping source from mirror pad. img
