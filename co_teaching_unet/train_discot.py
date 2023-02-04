@@ -162,6 +162,8 @@ def train_net(net_1,
         print("\ntry run end ...")
         return 0
 
+
+    len_trs = len(trains_s)
     
     for epoch in range(epochs):
         
@@ -172,7 +174,13 @@ def train_net(net_1,
         if with_source:
             # adjust num of source & target data
             if source_extend:
-                trains_s.extend( random.sample( trains_s, diff_s_t ) )
+                if diff_s_t > len_trs:
+                    diff_s_t_2 = diff_s_t - len_trs
+                    tmps = trains_s.copy()
+                    trains_s.extend( tmps )
+                    trains_s.extend( random.sample( trains_s, diff_s_t_2 ) )
+                else:
+                    trains_s.extend( random.sample( trains_s, diff_s_t ) )
             # random cropping source from mirror pad. img
             for train_img_list in trains_s:
                 train_s.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
