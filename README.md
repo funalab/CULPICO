@@ -5,7 +5,7 @@ This project is carried out in cooperation with [Funahashi Lab. at Keio Universi
 
 ## Overview
 
-Our model performs **unsupervised** segmentation of 2D phase-contrast microscopic image.
+Our model performs **unsupervised** segmentation for a 2D phase-contrast microscopic image.
 Our model consists of two independent segmentation models and a mutual exchange mechanism of inference data.
 The detailed information on this code is described in our paper published on [hoge](hoge).
 
@@ -18,7 +18,7 @@ The right image is the ground truth of segmentation.
 
 ![segmentation_result](raw/segmentation_images.jpg)
 
-Note: The input phase-contrast microscopic image and the output ground truth of the image
+Note: The input phase-contrast microscopic image and the output ground truth data
 are part of a public cell image dataset published by Edlund et. al. [[1]](#ref1).
 
 ## Requirements
