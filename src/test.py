@@ -141,8 +141,7 @@ def eval_mcd(device, test_list, testFiles, model=None, model_2=None, logfilePath
         inf_right = torch.cat((inf_ru[0:260, ], inf_rd[12:, ]), dim=0)
         inf = torch.cat((inf_left, inf_right), dim=1)
 
-        inf_img = inf.cpu().to(torch.uint8)
-        gt = gt.cpu()
+        inf_img = inf.to(torch.uint8)
 
         tmp_IoU = iou_pytorch(inf, gt, device)
         tmp_precision, tmp_recall = precision_recall_pytorch(inf, gt, device)
@@ -155,8 +154,8 @@ def eval_mcd(device, test_list, testFiles, model=None, model_2=None, logfilePath
         save_img_dir = f'{dir_imgs}/{foldername}'
         os.makedirs(save_img_dir, exist_ok=True)
 
-        io.imsave(f'{save_img_dir}/predict.tif', inf_img.numpy().astype(np.uint8))
-        io.imsave(f'{save_img_dir}/ground_truth.tif', gt.numpy().astype(np.uint8))
+        io.imsave(f'{save_img_dir}/predict.tif', inf_img.cpu().numpy().astype(np.uint8))
+        io.imsave(f'{save_img_dir}/ground_truth.tif', gt.cpu().numpy().astype(np.uint8))
 
     if logfilePath is not None:
         with open(logfilePath, mode='a') as f:
