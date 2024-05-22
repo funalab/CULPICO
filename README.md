@@ -35,8 +35,8 @@ See ```requirements.txt``` for details.
 
 1. Download this repository by `git clone`.
 2. Download datasets and learned model.
-3. Change directory to `QCANet/src`.
-4. Run QCA Net.
+3. Change directory to `hoge`.
+4. Run the model.
     - On Linux:
 
         ```sh
