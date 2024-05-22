@@ -143,13 +143,13 @@ See ```requirements.txt``` for details.
 2. Train model with the above-prepared dataset.
     
     Specify the folder names that contained source and target images using `--source` and `--target`option, respectively.
-    The accepted options will be displayed by `-h` option.
 
     ```sh
     % python src/train.py --source shsy5y --target mcf7 [optional arguments]
     ```
 
-    Prepare the config file describing detailed parameters for training.
+    The accepted options will be displayed by `-h` option.
+    We prepared the following options for training.
 
     ```
     dataset-dir                                 : Specify directory path for dataset contained train, validation and test.
