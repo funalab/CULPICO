@@ -34,7 +34,7 @@ See ```requirements.txt``` for details.
 ## QuickStart
 
 1. Download this repository by `git clone`.
-2. Download learned model.
+2. Download datasets and learned model.
 3. Change directory to `QCANet/src`.
 4. Run QCA Net.
     - On Linux:
