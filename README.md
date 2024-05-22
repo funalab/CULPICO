@@ -32,7 +32,7 @@ are part of a public cell image dataset published by Edlund et. al. [[1]](#ref1)
 - [NumPy 1.19.2](http://www.numpy.org)
 - [scikit-image 0.17.2](http://scikit-image.org/)
 
-See ```requirements.txt``` or ```requirements.yml``` for details. 
+See ```requirements.txt``` for details. 
 
 ## QuickStart
 
