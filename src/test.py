@@ -153,7 +153,7 @@ def eval_mcd(device, test_list, testFiles, model=None, model_2=None, logfilePath
         save_img_dir = f'{dir_imgs}/{foldername}'
         os.makedirs(save_img_dir, exist_ok=True)
 
-        inf = torch.where(inf > 0.5,
+        inf = torch.where(inf.cpu() > 0.5,
                           torch.tensor(1, dtype=torch.uint8, device='cpu'),
                           torch.tensor(0, dtype=torch.uint8, device='cpu'))
         io.imsave(f'{save_img_dir}/predict.tif', inf.numpy().astype(np.uint8)*255, check_contrast=False)
