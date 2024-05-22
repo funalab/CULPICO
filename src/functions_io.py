@@ -225,7 +225,7 @@ def draw_graph( save_dir, graph_name, epochs, red_list=None, red_label=None, blu
     plt.ylabel( y_label )
     plt.grid()
         
-    graph.savefig('{}{}.pdf'.format(save_dir, graph_name))
+    graph.savefig('{}/{}.pdf'.format(save_dir, graph_name))
     plt.clf()
     plt.close()
 
@@ -575,7 +575,7 @@ def create_trainlist(setList, scaling_type='unet', test=False, cut=False):
                     if cut: img = img[130:390, 176:528]
                 imgSet[-2] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
                     
-            else:
+            elif 'Mask' in filePath:
                 img = img / 255
                 if cut == True: img = img[130:390, 176:528]
                 imgSet[-1] = img if test == False else img.reshape([1, img.shape[-2], img.shape[-1]])
@@ -624,7 +624,7 @@ def create_testlist(setList, scaling_type='unet'):
                 imgSet[2][0] = img[248:520, 0:352].reshape([1, 272, 352])
                 imgSet[3][0] = img[248:520, 352:704].reshape([1, 272, 352])
                 
-            else:
+            elif 'Mask' in filePath:
                 img = img / 255
                 imgSet[0][1] = img[0:272, 0:352].reshape([1, 272, 352])
                 imgSet[1][1] = img[0:272, 352:704].reshape([1, 272, 352])

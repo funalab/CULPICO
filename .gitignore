@@ -1,6 +1,5 @@
 *dataset*
 *.out
-*.txt
 *.log
 Trash_Box
 *result*
@@ -16,3 +15,4 @@ nohup*
 *sh
 venv
 /best_models/
+/models/
