@@ -23,9 +23,6 @@ are part of a public cell image dataset published by Edlund et. al. [[1]](#ref1)
 
 ## Requirements
 
-- OS: Ubuntu 18.04.6
-- Language: python 3.8.5
-
 - [Python 3.8.5](https://www.python.org/downloads/)
 - [Pytorch 1.7.0](https://pytorch.org/)
 - [Matplotlib 3.3.3](https://matplotlib.org/)
