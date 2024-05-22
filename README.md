@@ -1,6 +1,6 @@
 # UnsupDomaAda_for_SemaSeg_of_Cell_Images
 
-This is the code for [hoge](hoge).
+This is the code for [Cell segmentation without annotation by unsupervised domain adaptation based on cooperative self-learning](hoge).
 This project is carried out in cooperation with [Funahashi Lab. at Keio University](https://fun.bio.keio.ac.jp/).
 
 ## Overview
@@ -60,8 +60,8 @@ See ```requirements.txt``` or ```requirements.yml``` for details.
         % python src/test.py --inference-cell mcf7
         ```
 
-    The processing time of above example will be about hoge sec on GPU (NVIDIA V100).
-    In this script, the input images are hard coded to be `images/example_input/Phase_Input.tif`, 
+    The processing time of above example will be about 30 sec on GPU (NVIDIA V100).
+    In this script, representative input image is stored in `images/example_input/Phase_Input.tif`, 
     the expected output of this segmentation is stored in `images/example_output/Predict_Output.tif`, and 
     the ground truth of the segmentations is stored in `images/example_output/Mask_Output.tif`.
 
