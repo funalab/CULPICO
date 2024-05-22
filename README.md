@@ -47,7 +47,7 @@ See ```requirements.txt``` or ```requirements.yml``` for details.
         % wget -P hoge/datasets https://fuga
         % wget -P hoge/models https://fuga
         % cd hoge
-        % python src/train.py --inference-cell mcf7
+        % python src/test.py --inference-cell mcf7
         ```
 
     - On macOS:
@@ -57,7 +57,7 @@ See ```requirements.txt``` or ```requirements.yml``` for details.
         % curl -o hoge/datasets https://fuga
         % curl -o hoge/models/learned_model https://fuga
         % cd hoge
-        % python src/train.py --inference-cell mcf7
+        % python src/test.py --inference-cell mcf7
         ```
 
     The processing time of above example will be about hoge sec on GPU (NVIDIA V100).
@@ -178,7 +178,7 @@ See ```requirements.txt``` or ```requirements.yml``` for details.
     The accepted options will be displayed by `-h` option.
 
     ```sh
-    % python src/train.py --inference-cell mcf7 --checkpoint models/learned_model [optional arguments]
+    % python src/test.py --inference-cell mcf7 --checkpoint models/learned_model [optional arguments]
     ```
 
 

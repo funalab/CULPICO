@@ -141,7 +141,7 @@ def eval_mcd(device, test_list, testFiles, model=None, model_2=None, logfilePath
         inf_right = torch.cat((inf_ru[0:260, ], inf_rd[12:, ]), dim=0)
         inf = torch.cat((inf_left, inf_right), dim=1)
 
-        inf_img = np.uint8(inf)
+        inf_img = inf.cpu().numpy().astype(np.uint8)
         re_img, me_img = merge_images(image[1][0], inf_img)
 
         tmp_IoU = iou_pytorch(inf, gt, device)
