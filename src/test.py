@@ -140,7 +140,7 @@ def eval_mcd(device, test_list, testFiles, model=None, model_2=None, logfilePath
         inf_left = torch.cat((inf_lu[0:260, ], inf_ld[12:, ]), dim=0)
         inf_right = torch.cat((inf_ru[0:260, ], inf_rd[12:, ]), dim=0)
         inf = torch.cat((inf_left, inf_right), dim=1)
-
+        print(torch.max(inf))
         tmp_IoU = iou_pytorch(inf, gt, device)
         tmp_precision, tmp_recall = precision_recall_pytorch(inf, gt, device)
 
