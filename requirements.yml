@@ -1,0 +1,13 @@
+name: pytorch
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - matplotlib-base=3.3.3
+  - numpy=1.19.2
+  - pip=20.2.4
+  - python=3.8.5
+  - pytorch=1.7.0
+  - scikit-image=0.17.2
+  - torchvision=0.8.1

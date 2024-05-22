@@ -7,7 +7,54 @@ from torch import optim
 import numpy as np
 import torch.nn.functional as F
 from model import *
-from functions_io import * 
+from functions_io import *
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Train model with input images and target masks',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-d', '--dataset-dir', metavar='D', type=str, default='./dataset',
+                        help='Dataset directory path', dest='dataset_dir')
+    parser.add_argument('-o', '--output-dir', metavar='O', type=str, nargs='?', default='./result/train',
+                        help='output directory?', dest='output_dir')
+    parser.add_argument('-s', '--source', metavar='S', type=str, nargs='?', default='shsy5y',
+                        help='source cell', dest='source')
+    parser.add_argument('-t', '--target', metavar='T', type=str, nargs='?', default='mcf7',
+                        help='target cell', dest='target')
+    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
+                        help='First num of kernels', dest='first_num_of_kernels')
+    parser.add_argument('-conf', '--pse-conf', metavar='PSEC', type=float, nargs='?', default=1.0,
+                        help='the confidence of pseudo label?', dest='c_conf')
+    parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='normal',
+                        help='scaling method??', dest='scaling_type')
+    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=3,
+                        help='Number of epochs', dest='epochs')
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
+                        help='Batch size', dest='batchsize')
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.001,
+                        help='Learning rate', dest='lr')
+    parser.add_argument('-om', '--optimizer-method', metavar='OM', type=str, nargs='?', default='Adam',
+                        help='Optimizer method', dest='optimizer_method')
+    parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
+                        help='gpu number?', dest='gpu_no')
+    parser.add_argument('-seed', type=int, nargs='?', default=0,
+                        help='seed num?', dest='seed')
+    parser.add_argument('-c', '--checkpoint', metavar='CT', type=str, nargs='?', default=None,
+                        help='load checkpoint path?', dest='checkpoint')
+
+    return parser.parse_args()
+
+
+def torch_fix_seed(seed=42):
+    # Python random
+    random.seed(seed)
+    # Numpy
+    np.random.seed(seed)
+    # Pytorch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.use_deterministic_algorithms = True
 
 
 def train_net(net_1,
@@ -17,23 +64,21 @@ def train_net(net_1,
               batch_size=4,
               lr=0.0001,
               first_num_of_kernels=64,
-              dir_datasets='LIVECell_dataset/',
-              dir_checkpoint='checkpoint/',
-              dir_result='result/',
-              dir_graphs=f'result/',
-              optimizer_method = 'Adam',
+              dir_datasets='./datasets',
+              dir_checkpoint='./checkpoint',
+              dir_result='./result',
+              dir_graphs='./result/graphs',
+              optimizer_method='Adam',
               source='HeLa',
               target='3T3',
               scaling_type='normal',
               opt_1=None,
               opt_2=None,
-              mode = 'discrepancy',
-              c_conf = 1,
-              nosave = 0):
+              c_conf=1):
 
     # resultfile & losslist
-    path_w = f"{dir_result}output.txt"
-    path_lossList = f"{dir_graphs}loss_list.pkl"
+    path_w = f"{dir_result}/output.txt"
+    path_lossList = f"{dir_graphs}/loss_list.pkl"
     
     # recode training conditions
     with open( path_w, mode='w' ) as f:  
@@ -41,7 +86,7 @@ def train_net(net_1,
         f.write( 'optimizer method:{}, learning rate:{} \n'.format( optimizer_method, lr ) )
         f.write( 'max epoch:{}, batchsize:{} \n'.format( epochs, batch_size ) )
         f.write( f'src:{source}, tgt:{target}\n' )
-        f.write( f'mode:{mode}, c_conf:{c_conf}  \n' )
+        f.write( f'c_conf:{c_conf}  \n' )
         
     # optimizer set
     criterion = nn.BCELoss()
@@ -177,20 +222,17 @@ def train_net(net_1,
             mask_prob_1_flat = mask_prob_1.view(-1)
             mask_prob_2_flat = mask_prob_2.view(-1)
 
-            if mode == 'discrepancy':
-                pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
+            pseudo_lab_t1, pseudo_lab_t2, confidence = create_uncer_pseudo( mask_prob_1_flat, mask_prob_2_flat, device=device )
 
-                confidence = c_conf * confidence
+            confidence = c_conf * confidence
 
-                pseudo_criterion = nn.BCELoss( weight=confidence.detach() )
+            pseudo_criterion = nn.BCELoss( weight=confidence.detach() )
 
-                # crossing field
-                t_loss_1 = pseudo_criterion( mask_prob_1_flat, pseudo_lab_t2.detach() )
-                t_loss_2 = pseudo_criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
+            # crossing field
+            t_loss_1 = pseudo_criterion( mask_prob_1_flat, pseudo_lab_t2.detach() )
+            t_loss_2 = pseudo_criterion( mask_prob_2_flat, pseudo_lab_t1.detach() )
 
-                loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2
-            else:
-                raise NotImplementedError
+            loss_total = s_loss_1 + s_loss_2 + t_loss_1 + t_loss_2
 
             opt_1.zero_grad()
             opt_2.zero_grad()
@@ -262,29 +304,25 @@ def train_net(net_1,
         val_iou_t1_list.append( val_iou_t1 / len_val_t )
         val_iou_t2_list.append( val_iou_t2 / len_val_t )
         ####################################################################################
+        if seg < min_val_s_loss_1:
+            min_val_s_loss_1 = seg
 
-        if  nosave:
+            best_net1 = net_1.state_dict()
+            best_net2 = net_2.state_dict()
+
+            best_opt1 = opt_1.state_dict()
+            best_opt2 = opt_2.state_dict()
+
+            torch.save({
+                'best_net1': best_net1,
+                'best_net2': best_net2,
+                'opt_net1': best_opt1,
+                'opt_net2': best_opt2,
+                'epoch': epoch + 1,
+            }, f'{dir_checkpoint}/best_learned_model')
+
             with open(path_w, mode='a') as f:
-                    f.write(f'epoch{epoch} finished! \n') 
-        else:
-            if seg < min_val_s_loss_1:
-                min_val_s_loss_1 = seg
-        
-                best_net1 = net_1.state_dict()
-                best_net2 = net_2.state_dict()
-                
-                best_opt1 = opt_1.state_dict()
-                best_opt2 = opt_2.state_dict()
-                
-                torch.save({
-                    'best_net1' : best_net1,
-                    'best_net2' : best_net2,
-                    'opt_net1' : best_opt1,
-                    'opt_net2' : best_opt2,
-                }, '{}CP_min_segloss1_e{}'.format(dir_checkpoint, epoch+1))
-
-                with open(path_w, mode='a') as f:
-                    f.write('seg loss 1 is update \n')            
+                f.write('best model was saved \n')
                 
         my_dict = { 'tr_loss_list': tr_loss_list,
                     'source_seg_list_1': source_seg_list_1,
@@ -297,7 +335,7 @@ def train_net(net_1,
                     }
 
         with open(path_lossList, "wb") as tf:
-            pickle.dump( my_dict, tf )
+            pickle.dump(my_dict, tf)
                 
     
     #segmentation loss graph
@@ -309,77 +347,6 @@ def train_net(net_1,
     draw_graph( dir_graphs, 'loss_net2', epochs, red_list=source_seg_list_2,  red_label='source loss', green_list=tgt_seg_list_2, green_label='target loss' )
 
     draw_graph( dir_graphs, 'target_IoU', epochs, red_list=val_iou_t1_list,  red_label='net1_IoU', green_list=val_iou_t2_list,  green_label='net2_IoU', y_label='IoU' )
-
-
-
-
-def get_args():
-    parser = argparse.ArgumentParser(description='Train the UNet on images and target masks',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-d', '--dataset-dir', metavar='D', type=str, default='./LIVECell_dataset',
-                        help='Dataset directory path', dest='dataset_dir')
-    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=5,
-                        help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
-                        help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.001,
-                        help='Learning rate', dest='lr')
-    parser.add_argument('-fk', '--first-kernels', metavar='FK', type=int, nargs='?', default=64,
-                        help='First num of kernels', dest='first_num_of_kernels')
-    parser.add_argument('-om', '--optimizer-method', metavar='OM', type=str, nargs='?', default='Adam',
-                        help='Optimizer method', dest='optimizer_method')
-    parser.add_argument('-s', '--source', metavar='S', type=str, nargs='?', default='shsy5y',
-                        help='source cell', dest='source')
-    parser.add_argument('-t', '--target', metavar='T', type=str, nargs='?', default='mcf7',
-                        help='target cell', dest='target')
-    parser.add_argument('-o', '--output-dir', metavar='O', type=str, nargs='?', default='trial',
-                        help='output directory?', dest='output_dir')
-    parser.add_argument('-g', '--gpu', metavar='G', type=str, nargs='?', default='0',
-                        help='gpu number?', dest='gpu_no')
-    parser.add_argument('-cob', '--co_stepB', type=float, nargs='?', default=0.1,
-                        help='the coefficient in B?', dest='co_B')
-    parser.add_argument('-coc', '--co_stepC', type=float, nargs='?', default=1.0,
-                        help='the coefficient in C?', dest='co_C')
-    parser.add_argument('-th', '--threshold', type=float, nargs='?', default=0.01,
-                        help='ssl threshold?', dest='thresh')
-    parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='unet',
-                        help='scaling method??', dest='scaling_type')
-    parser.add_argument('-c', '--checkpoint', metavar='CT', type=str, nargs='?', default=None,
-                        help='load checkpoint path?', dest='checkpoint')
-    parser.add_argument('-conf', '--pse-conf', metavar='PSEC', type=float, nargs='?', default=1.0,
-                        help='the confidence of pseudo label?', dest='c_conf')
-    parser.add_argument('-cell', type=str, nargs='?', default='bt474',
-                        help='what cell you  use raw unet for?', dest='cell_raw')
-    parser.add_argument('-fromterm2', type=bool, nargs='?', default=False,
-                        help='retrain main network?', dest='fromterm2')
-    parser.add_argument('-preenco', type=int, nargs='?', default=1,
-                        help='use pretrain encoder?', dest='pre_enco')
-    parser.add_argument('-fr', type=float, nargs='?', default=None,
-                        help='forget_rate ?', dest='forget_rate')
-    parser.add_argument('-nl', type=float, nargs='?', default=0.2,
-                        help='corruption rate, should be less than 1', dest='noise_rate')
-    parser.add_argument('-next', type=int, nargs='?', default=0,
-                        help='pseudolab refine & model retrain ?', dest='next')
-    parser.add_argument('-seed', type=int, nargs='?', default=0,
-                        help='seed num?', dest='seed')
-    parser.add_argument('-mode', type=str, nargs='?', default='discrepancy',
-                        help='discrepancy or distribution or nothing?', dest='mode')
-    parser.add_argument('-nosave', type=int, nargs='?', default=0,
-                        help='save no model?', dest='nosave')
-    
-  
-    return parser.parse_args()
-
-def torch_fix_seed(seed=42):
-    # Python random
-    random.seed(seed)
-    # Numpy
-    np.random.seed(seed)
-    # Pytorch
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.use_deterministic_algorithms = True
 
 
 if __name__ == '__main__':
@@ -397,24 +364,38 @@ if __name__ == '__main__':
     net_2 = UNet(first_num_of_kernels=args.first_num_of_kernels, n_channels=1, n_classes=1, bilinear=True)
     net_2.to(device=device)
 
+    if args.optimizer_method == 'Adam':
+        opt_1 = optim.Adam(
+            net_1.parameters(),
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+            amsgrad=False
+        )
 
-    opt_1 = optim.Adam(
-        net_1.parameters(),
-        lr=args.lr,
-        betas=(0.9, 0.999),
-        eps=1e-08,
-        weight_decay=0,
-        amsgrad=False
-    )
-    
-    opt_2 = optim.Adam(
-        net_2.parameters(),
-        lr=args.lr,
-        betas=(0.9, 0.999),
-        eps=1e-08,
-        weight_decay=0,
-        amsgrad=False
-    )
+        opt_2 = optim.Adam(
+            net_2.parameters(),
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0,
+            amsgrad=False
+        )
+    elif args.optimizer_method == 'SGD':
+        opt_1 = optim.SGD(
+            net_1.parameters(),
+            lr=args.lr,
+            weight_decay=0,
+        )
+
+        opt_2 = optim.SGD(
+            net_2.parameters(),
+            lr=args.lr,
+            weight_decay=0,
+        )
+    else:
+        raise NotImplementedError
          
     
     # loading models from checkpoints
@@ -440,11 +421,9 @@ if __name__ == '__main__':
     dir_datasets = f'{args.dataset_dir}'
     dir_result = f'{args.output_dir}'
     dir_checkpoint = f'{dir_result}/checkpoint'
-    current_graphs = f'./graphs'
     dir_graphs = f'{dir_result}/graphs'
     os.makedirs(dir_result, exist_ok=True)
     os.makedirs(dir_checkpoint, exist_ok=True)
-    os.makedirs(current_graphs, exist_ok=True)
     os.makedirs(dir_graphs, exist_ok=True)
     
     try:
@@ -456,19 +435,17 @@ if __name__ == '__main__':
                   lr=args.lr,
                   first_num_of_kernels=args.first_num_of_kernels,
                   device=device,
-                  dir_datasets=f'{dir_datasets}/',
-                  dir_checkpoint=f'{dir_checkpoint}/',
-                  dir_result=f'{dir_result}/',
-                  dir_graphs=f'{dir_graphs}/',
+                  dir_datasets=f'{dir_datasets}',
+                  dir_checkpoint=f'{dir_checkpoint}',
+                  dir_result=f'{dir_result}',
+                  dir_graphs=f'{dir_graphs}',
                   optimizer_method=args.optimizer_method,
                   source=args.source,
                   target=args.target,
                   scaling_type=args.scaling_type,
                   opt_1=opt_1,
                   opt_2=opt_2,
-                  mode = args.mode,
-                  c_conf=args.c_conf,
-                  nosave = args.nosave)
+                  c_conf=args.c_conf)
         
             
     except KeyboardInterrupt:
