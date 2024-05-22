@@ -154,8 +154,11 @@ def eval_mcd(device, test_list, testFiles, model=None, model_2=None, logfilePath
         save_img_dir = f'{dir_imgs}/{foldername}'
         os.makedirs(save_img_dir, exist_ok=True)
 
-        io.imsave(f'{save_img_dir}/predict.tif', inf_img.cpu().numpy().astype(np.uint8))
-        io.imsave(f'{save_img_dir}/ground_truth.tif', gt.cpu().numpy().astype(np.uint8))
+        print(np.max(inf_img.cpu().numpy()))
+        print(np.max(gt.cpu().numpy()))
+
+        io.imsave(f'{save_img_dir}/predict.tif', inf_img.cpu().numpy().astype(np.uint8), check_contrast=False)
+        io.imsave(f'{save_img_dir}/ground_truth.tif', gt.cpu().numpy().astype(np.uint8), check_contrast=False)
 
     if logfilePath is not None:
         with open(logfilePath, mode='a') as f:
