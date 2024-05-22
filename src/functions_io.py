@@ -1,23 +1,22 @@
-#Diceloss
+import os
+import re
+import glob
+import copy
+import math
+import random
 import torch
-from torch.autograd import Function
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Function
 import numpy as np
 import skimage.io
 import skimage.transform
-import random
 from skimage import io
-import os
-import glob
 import matplotlib.pyplot as plt
 from PIL import Image
 from torchvision import transforms
-import random
 from torchvision.transforms import functional as tvf
-import copy
-import re
-import math
+
 
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -202,32 +201,33 @@ class Diff2d(nn.Module):
         return torch.mean(torch.abs(inputs1 - inputs2))
 
 def draw_graph( save_dir, graph_name, epochs, red_list=None, red_label=None, blue_list=None, blue_label=None,  green_list=None, green_label=None, x_label='epoch', y_label='loss' ):
-        graph = plt.figure()
-        if red_list != None:
-            plt.plot(range(epochs), red_list, 'r-', label=red_label )
-            if y_max < max(red_list):
-                y_max = max(red_list)
-        if blue_list != None:
-            plt.plot(range(epochs), blue_list, 'b-', label=blue_label )
-            if y_max < max(blue_list):
-                y_max = max(blue_list)
-        if green_list != None:
-            plt.plot(range(epochs), green_list, 'g-', label=green_label )
-            if y_max < max(green_list):
-                y_max = max(green_list)
-        plt.legend()
+    y_max = -10000
+    graph = plt.figure()
+    if red_list != None:
+        plt.plot(range(epochs), red_list, 'r-', label=red_label )
+        if y_max < max(red_list):
+            y_max = max(red_list)
+    if blue_list != None:
+        plt.plot(range(epochs), blue_list, 'b-', label=blue_label )
+        if y_max < max(blue_list):
+            y_max = max(blue_list)
+    if green_list != None:
+        plt.plot(range(epochs), green_list, 'g-', label=green_label )
+        if y_max < max(green_list):
+            y_max = max(green_list)
+    plt.legend()
 
         # 0.5間隔でrange設定
-        ylim_max = math.ceil(y_max)-0.5 if math.ceil(y_max) - y_max > 0.5 else math.ceil(y_max)
-        plt.ylim(0, ylim_max)
+    ylim_max = math.ceil(y_max)-0.5 if math.ceil(y_max) - y_max > 0.5 else math.ceil(y_max)
+    plt.ylim(0, ylim_max)
 
-        plt.xlabel( x_label )
-        plt.ylabel( y_label )
-        plt.grid()
+    plt.xlabel( x_label )
+    plt.ylabel( y_label )
+    plt.grid()
         
-        graph.savefig('{}{}.pdf'.format(save_dir, graph_name))
-        plt.clf()
-        plt.close()
+    graph.savefig('{}{}.pdf'.format(save_dir, graph_name))
+    plt.clf()
+    plt.close()
 
 def get_img_list(name, cell, large_flag):
     
