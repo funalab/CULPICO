@@ -16,7 +16,7 @@ The left image is the input phase-contrast microscopic image.
 The middle images is the predicted segmentation image.
 The right image is the ground truth of segmentation.
 
-![segmentation_result](raw/segmentation_result.tif)
+![segmentation_result](raw/representative_images.tif)
 
 Note: The input phase-contrast microscopic image and the output ground truth of the image
 are part of a public cell image dataset published by Edlund et. al. [[1]](#ref1).
