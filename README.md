@@ -34,15 +34,17 @@ See ```requirements.txt``` for details.
 ## QuickStart
 
 1. Download this repository by `git clone`.
-2. Download datasets and learned model.
+2. Download datasets and learned model.  
+   (*) LIVECell dataset are published under Attribution-NonCommercial 4.0 International ([CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)) license.
 3. Change directory to `hoge`.
 4. Run the model.
     - On Linux:
 
         ```sh
         % git clone https://github.com/funalab/hoge.git
-        % wget -P hoge/datasets https://fuga
-        % wget -P hoge/models https://fuga
+        % wget -P hoge/datasets https://drive.google.com/file/d/1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V/view?usp=sharing
+        % wget -P hoge/models https://drive.google.com/file/d/1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV/view?usp=sharing
+        % tar -zxvf LIVECell_dataset.tar.gz
         % cd hoge
         % python src/test.py --inference-cell mcf7
         ```
@@ -51,8 +53,9 @@ See ```requirements.txt``` for details.
 
         ```sh
         % git clone https://github.com/funalab/hoge.git
-        % curl -o hoge/datasets https://fuga
-        % curl -o hoge/models/learned_model https://fuga
+        % curl -o hoge/datasets https://https://drive.google.com/file/d/1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V/view?usp=sharing
+        % curl -o hoge/models/learned_model https://drive.google.com/file/d/1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV/view?usp=sharing
+        % tar -zxvf LIVECell_dataset.tar.gz
         % cd hoge
         % python src/test.py --inference-cell mcf7
         ```
@@ -182,7 +185,7 @@ See ```requirements.txt``` for details.
 # Acknowledgement
 
 The microscopic images included in this repository are part of a public cell image dataset published by Edlund et. al. [[1]](#ref1).
-We are grateful toYuyaKobayashi for valuable discussions.
+We are grateful to YuyaKobayashi for valuable discussions.
 The development of this algorithm was funded by MEXT/JSPSKAKENHI Grant Number JP18H04742 "Resonance Bio" to [Akira Funahashi](https://github.com/funasoul).
 
 # References
