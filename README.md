@@ -1,4 +1,4 @@
-# UnsupDomaAda_for_SemaSeg_of_Cell_Images
+# CULPICO
 
 This is the code for [Cell segmentation without annotation by unsupervised domain adaptation based on cooperative self-learning](hoge).
 This project was carried out in the [Funahashi Lab. at Keio University](https://fun.bio.keio.ac.jp/).
