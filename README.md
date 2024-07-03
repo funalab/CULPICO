@@ -1,7 +1,7 @@
 # CULPICO
 
 This is the code for [Cell segmentation without annotation by unsupervised domain adaptation based on cooperative self-learning](hoge).
-This project was carried out in the [Funahashi Lab. at Keio University](https://fun.bio.keio.ac.jp/).
+This project is carried out in [Funahashi Lab. at Keio University](https://fun.bio.keio.ac.jp/).
 
 ## Overview
 
@@ -19,7 +19,8 @@ The right image is the ground truth of segmentation.
 ![segmentation_result](raw/segmentation_images.jpg)
 
 Note: The input phase-contrast microscopic image and the output ground truth data
-are part of a public cell image dataset published by Edlund et. al. [[1]](#ref1).
+are part of a public cell image dataset LIVECell published by Edlund et. al. [[1](#ref1)].
+Original LIVECell dataset are published under Attribution-NonCommercial 4.0 International ([CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)) license.
 
 ## Requirements
 
@@ -34,8 +35,7 @@ See ```requirements.txt``` for details.
 ## QuickStart
 
 1. Download this repository by `git clone`.
-2. Download datasets and learned model.  
-   (*) LIVECell dataset are published under Attribution-NonCommercial 4.0 International ([CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)) license.
+2. Download datasets and learned model.
 3. Change directory to `hoge`.
 4. Run the model.
     - On Linux:
@@ -184,10 +184,11 @@ See ```requirements.txt``` for details.
 
 # Acknowledgement
 
-The microscopic images included in this repository are part of a public cell image dataset published by Edlund et. al. [[1]](#ref1).
+The microscopic images included in this repository are part of a public cell image dataset published by Edlund et. al. [[1](#ref1)].
 We are grateful to YuyaKobayashi for valuable discussions.
-The development of this algorithm was funded by MEXT/JSPSKAKENHI Grant Number JP18H04742 "Resonance Bio" to [Akira Funahashi](https://github.com/funasoul).
+The development of this algorithm was funded by MEXT/JSPSKAKENHI Grant Number JP18H04742 "Resonance Bio" 
+and JST CREST, Japan Grant Number JPMJCR2331 to [Akira Funahashi](https://github.com/funasoul).
 
 # References
 
-<a name="ref1"></a> [[1] Christoffer Edlund, et al. "LIVECell—A large-scale dataset for label-free live cell segmentation" Nature Methods 18, 1038–1045 (2021).](https://www.nature.com/articles/s41592-021-01249-6)
+<a id="ref1"></a>[[1] Christoffer Edlund, et al. "LIVECell—A large-scale dataset for label-free live cell segmentation" Nature Methods 18, 1038–1045 (2021).](https://www.nature.com/articles/s41592-021-01249-6) 
