@@ -1,4 +1,4 @@
-# CULPICO
+# CULPICO: Cooperative Unsupervised Learning for PIxel-wise COloring
 
 This is the code for [Cell segmentation without annotation by unsupervised domain adaptation based on cooperative self-learning](hoge).
 This project is carried out in [Funahashi Lab. at Keio University](https://fun.bio.keio.ac.jp/).
@@ -186,7 +186,7 @@ See ```requirements.txt``` for details.
 
 The microscopic images included in this repository are part of a public cell image dataset published by Edlund et. al. [[1](#ref1)].
 We are grateful to YuyaKobayashi for valuable discussions.
-The development of this algorithm was funded by MEXT/JSPSKAKENHI Grant Number JP18H04742 "Resonance Bio" 
+The development of this algorithm was funded by MEXT/JSPS KAKENHI Grant Number JP18H04742 "Resonance Bio" 
 and JST CREST, Japan Grant Number JPMJCR2331 to [Akira Funahashi](https://github.com/funasoul).
 
 # References
