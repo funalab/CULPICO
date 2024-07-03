@@ -1,7 +1,7 @@
 # UnsupDomaAda_for_SemaSeg_of_Cell_Images
 
 This is the code for [Cell segmentation without annotation by unsupervised domain adaptation based on cooperative self-learning](hoge).
-This project is carried out in cooperation with [Funahashi Lab. at Keio University](https://fun.bio.keio.ac.jp/).
+This project was carried out in the [Funahashi Lab. at Keio University](https://fun.bio.keio.ac.jp/).
 
 ## Overview
 
