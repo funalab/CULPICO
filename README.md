@@ -42,9 +42,9 @@ See ```requirements.txt``` for details.
 
         ```sh
         % git clone https://github.com/funalab/hoge.git
-        % wget -P hoge/datasets https://drive.google.com/file/d/1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V/view?usp=sharing
-        % wget -P hoge/models https://drive.google.com/file/d/1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV/view?usp=sharing
-        % tar zxvf LIVECell_dataset.tar.gz
+        % wget -O hoge/models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
+        % wget -O LIVECell_dataset.tar.gz "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
+        % tar xvzf LIVECell_dataset.tar.gz
         % cd hoge
         % python src/test.py --inference-cell mcf7
         ```
@@ -55,7 +55,7 @@ See ```requirements.txt``` for details.
         % git clone https://github.com/funalab/hoge.git
         % curl -o hoge/datasets/LIVECell_dataset.tar.gz -L "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
         % curl -o hoge/models/learned_model -L "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
-        % tar zxvf LIVECell_dataset.tar.gz
+        % tar xvzf LIVECell_dataset.tar.gz
         % cd hoge
         % python src/test.py --inference-cell mcf7
         ```
