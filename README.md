@@ -36,27 +36,27 @@ See ```requirements.txt``` for details.
 
 1. Download this repository by `git clone`.
 2. Download datasets and learned model.
-3. Change directory to `hoge`.
+3. Change directory to `CULPICO`.
 4. Run the model.
     - On Linux:
 
         ```sh
-        % git clone https://github.com/funalab/hoge.git
-        % wget -O hoge/models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
+        % git clone https://github.com/funalab/CULPICO.git
+        % wget -O CULPICO/models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
         % wget -O LIVECell_dataset.tar.gz "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
         % tar xvzf LIVECell_dataset.tar.gz
-        % cd hoge
+        % cd CULPICO
         % python src/test.py --inference-cell mcf7
         ```
 
     - On macOS:
 
         ```sh
-        % git clone https://github.com/funalab/hoge.git
-        % curl -o hoge/datasets/LIVECell_dataset.tar.gz -L "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
-        % curl -o hoge/models/learned_model -L "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
+        % git clone https://github.com/funalab/CULPICO.git
+        % curl -o CULPICO/datasets/LIVECell_dataset.tar.gz -L "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
+        % curl -o CULPICO/models/learned_model -L "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
         % tar xvzf LIVECell_dataset.tar.gz
-        % cd hoge
+        % cd CULPICO
         % python src/test.py --inference-cell mcf7
         ```
 
