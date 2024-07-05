@@ -38,28 +38,40 @@ See ```requirements.txt``` for details.
    ```sh
    % git clone git@github.com:funalab/CULPICO.git
    ```
-3. Download datasets and learned model.
-4. Change directory to `CULPICO`.
-5. Run the model.
+2. Install requirements.
+   ```sh
+   % cd CULPICO/
+   % python -m venv venv
+   % source ./venv/bin/activate
+   % pip install --upgrade pip
+   % pip install -r requirements.txt
+   ```
+4. Download datasets and learned model.
+   - On Linux:
+
+      ```sh
+      % mkdir -p models
+      % wget -O models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
+      % wget -O LIVECell_dataset.tar.gz "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
+      ```
+
+   - on macOS:
+     ```sh
+     % mkdir -p models
+     % curl -O models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
+     % curl -O LIVECell_dataset.tar.gz "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
+     ```
+6. Run the model.
     - On Linux:
 
         ```sh
-        % git clone https://github.com/funalab/CULPICO.git
-        % wget -O CULPICO/models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
-        % wget -O LIVECell_dataset.tar.gz "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
-        % tar xvzf LIVECell_dataset.tar.gz
-        % cd CULPICO
+
         % python src/test.py --inference-cell mcf7
         ```
 
     - On macOS:
 
         ```sh
-        % git clone https://github.com/funalab/CULPICO.git
-        % curl -o CULPICO/datasets/LIVECell_dataset.tar.gz -L "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
-        % curl -o CULPICO/models/learned_model -L "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
-        % tar xvzf LIVECell_dataset.tar.gz
-        % cd CULPICO
         % python src/test.py --inference-cell mcf7
         ```
 
