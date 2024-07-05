@@ -184,7 +184,7 @@ See ```requirements.txt``` for details.
 
 # Acknowledgement
 
-The microscopic images included in this repository are part of a public cell image dataset published by Edlund et. al. [1](#ref1).
+The microscopic images included in this repository are part of a public cell image dataset published by Edlund et. al. [[1](#ref1)].
 We are grateful to YuyaKobayashi for valuable discussions.
 The development of this algorithm was funded by MEXT/JSPS KAKENHI Grant Number JP18H04742 "Resonance Bio" 
 and JST CREST, Japan Grant Number JPMJCR2331 to [Akira Funahashi](https://github.com/funasoul).
