@@ -213,3 +213,7 @@ if __name__ == '__main__':
         f.write('precision : {: .04f} +-{: .04f}\n'.format(statistics.mean(precision),
                                                            statistics.stdev(precision)))
         f.write('recall : {: .04f} +-{: .04f}\n'.format(statistics.mean(recall), statistics.stdev(recall)))
+
+    with open(path_w, mode='r') as f:
+        result = f.read()
+        print(result)

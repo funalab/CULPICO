@@ -24,11 +24,11 @@ Original LIVECell dataset are published under Attribution-NonCommercial 4.0 Inte
 
 ## Requirements
 
-- [Python 3.8.5](https://www.python.org/downloads/)
-- [Pytorch 1.7.0](https://pytorch.org/)
-- [Matplotlib 3.3.3](https://matplotlib.org/)
-- [NumPy 1.19.2](http://www.numpy.org)
-- [scikit-image 0.17.2](http://scikit-image.org/)
+- [Python 3.7.6+](https://www.python.org/downloads/)
+- [Pytorch 1.13.1](https://pytorch.org/)
+- [Matplotlib 3.5.3](https://matplotlib.org/)
+- [NumPy 1.21.6](http://www.numpy.org)
+- [scikit-image 0.19.3](http://scikit-image.org/)
 
 See ```requirements.txt``` for details. 
 
@@ -53,26 +53,28 @@ See ```requirements.txt``` for details.
       % mkdir -p models
       % wget -O models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
       % wget -O LIVECell_dataset.tar.gz "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
+      % tar zxvf LIVECell_dataset.tar.gz
       ```
 
    - on macOS:
      ```sh
      % mkdir -p models
-     % curl -O models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
-     % curl -O LIVECell_dataset.tar.gz "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
+     % curl --output models/learned_model "https://drive.usercontent.google.com/download?id=1rsPBop-BXrbjdXb_3wPCw0cz5v0HNOUV&confirm=xxx"
+     % curl --output LIVECell_dataset.tar.gz "https://drive.usercontent.google.com/download?id=1knrykZ8aOwNKbOUzQ8a1PvGQodOkY1-V&confirm=xxx"
+     % tar zxvf LIVECell_dataset.tar.gz
      ```
 6. Run the model.
-    - On Linux:
+    - On GPU (Specify GPU ID):
 
         ```sh
 
-        % python src/test.py --inference-cell mcf7
+        % python src/test.py --inference-cell mcf7 --gpu 0
         ```
 
-    - On macOS:
+    - On CPU (Negative value of GPU ID indicates CPU)):
 
         ```sh
-        % python src/test.py --inference-cell mcf7
+        % python src/test.py --inference-cell mcf7 --gpu -1
         ```
 
     The processing time of above example will be about 30 sec on GPU (NVIDIA V100).
