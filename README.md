@@ -35,9 +35,12 @@ See ```requirements.txt``` for details.
 ## QuickStart
 
 1. Download this repository by `git clone`.
-2. Download datasets and learned model.
-3. Change directory to `CULPICO`.
-4. Run the model.
+   ```sh
+   % git clone git@github.com:funalab/CULPICO.git
+   ```
+3. Download datasets and learned model.
+4. Change directory to `CULPICO`.
+5. Run the model.
     - On Linux:
 
         ```sh
