@@ -1,13 +1,13 @@
 # CULPICO: Cooperative Unsupervised Learning for PIxel-wise COloring
 
-This is the code for [Cell segmentation without annotation by unsupervised domain adaptation based on cooperative self-learning](hoge).
+This is the code for [Cell segmentation without annotation by unsupervised domain adaptation based on cooperative self-learning](https://www.biorxiv.org/content/10.1101/2024.07.05.602197v1).
 This project is carried out in [Funahashi Lab. at Keio University](https://fun.bio.keio.ac.jp/).
 
 ## Overview
 
 Our model performs **unsupervised** segmentation for a 2D phase-contrast microscopic image.
 Our model consists of two independent segmentation models and a mutual exchange mechanism of inference data.
-The detailed information on this code is described in our paper published on [hoge](hoge).
+The detailed information on this code is described in our paper published on [here](https://www.biorxiv.org/content/10.1101/2024.07.05.602197v1).
 
 ## Performance
 
