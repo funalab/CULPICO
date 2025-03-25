@@ -173,7 +173,23 @@ def batch(iterable, batch_size, source):
 
     if len(b) > 0:
         yield b
-        
+
+
+def batch_for_resnet(iterable, batch_size):
+    b = []
+    for i, t in enumerate(iterable):
+        tmp_list = [0] * 2
+        tmp_list[0] = np.transpose(t[0], (2, 0, 1))
+        tmp_list[1] = t[1].reshape([1, t[1].shape[-2], t[1].shape[-1]])
+
+        b.append(tmp_list)
+        if (i + 1) % batch_size == 0:
+            yield b
+            b = []
+
+    if len(b) > 0:
+        yield b
+
 def scaling_image(image):
     """
     画像の輝度値を0~1に正規化する
@@ -346,7 +362,34 @@ def random_cropping( img, lab, outH, outW ):
     crop_list[1] = crop_lab
 
     return crop_list
-    
+
+
+def random_cropping_for_resnet(img, lab, outH, outW):
+    # img, labはnp.ndarrayを想定
+    rotate_img, ang, fl = random_rotate_image(img, return_angle=True)
+    rotate_lab = random_rotate_image(lab, spin=ang, flip=fl)
+
+    pil_img = Image.fromarray( rotate_img )
+    pil_lab = Image.fromarray( rotate_lab )
+
+    i, j, h, w = transforms.RandomCrop.get_params( pil_img, output_size=( outH, outW ) )
+
+    crop_img = np.array( tvf.crop( pil_img, i, j, h, w ) )
+    crop_lab = np.array( tvf.crop( pil_lab, i, j, h, w ) )
+
+    # to adjust for pretrained resnet
+    crop_img = np.repeat(crop_img[..., np.newaxis], 3, axis=-1)
+
+    #crop_img = np.transpose(crop_img, (2, 0, 1))
+    #crop_lab = np.transpose(crop_lab, (2, 0, 1))
+
+    crop_list = [0] * 2
+
+    crop_list[0] = crop_img
+    crop_list[1] = crop_lab
+
+    return crop_list
+
 
 def cutting_img( img_list, size_h, size_w ):
     height = img_list[0].shape[0]
@@ -371,6 +414,56 @@ def cutting_img( img_list, size_h, size_w ):
             cut_list.append( copy.copy(cut_imgs) )
             
     return cut_list
+
+
+def cutting_img_for_resnet(img_list, size_h, size_w):
+    height = img_list[0].shape[0]
+    width = img_list[0].shape[1]
+    # print(f"height={height}")
+    # print(f"width={width}")
+    n_h = int(height / size_h)
+    n_w = int(width / size_w)
+    # print(f"n_h={n_h}")
+    # print(f"n_w={n_w}")
+    # print(f"img_list[0].shape={img_list[0].shape}")
+    # print(f"img_list[1].shape={img_list[1].shape}")
+
+    cut_list = []
+    cut_imgs = [0] * 2
+    for i in range(n_h):
+        for j in range(n_w):
+            img_cut = img_list[0][i * size_h: i * size_h + size_h, j * size_w: j * size_w + size_w]
+            # to adjust for pretrained resnet
+            cut_imgs[0] = np.repeat(img_cut[..., np.newaxis], 3, axis=-1)
+            cut_imgs[1] = img_list[1][i * size_h: i * size_h + size_h, j * size_w: j * size_w + size_w]
+
+            cut_list.append(copy.copy(cut_imgs))
+
+    return cut_list
+
+
+def reshape_for_validation_in_resnet(img, mask, device):
+    img = np.squeeze(img, axis=0)
+    img = np.repeat(img[..., np.newaxis], 3, axis=-1)
+    img = np.array(img).astype(np.float32)
+    img = np.transpose(img, (2, 0, 1))
+    img = torch.from_numpy(img).unsqueeze(0).to(device=device)
+
+    mask = np.array(mask).astype(np.float32)
+    mask = mask.reshape([1, mask.shape[-2], mask.shape[-1]])
+    mask = torch.from_numpy(mask).unsqueeze(0).to(device=device)
+
+    return img, mask.shape[-2:]
+
+
+def reshape_for_validation_in_dual(img, mask, device):
+    img_t = np.array(img).astype(np.float32)
+    img_t = torch.from_numpy(img_t).unsqueeze(0).to(device=device)
+    ###
+    mask = np.array(mask).astype(np.float32)
+    mask = mask.reshape([1, mask.shape[-2], mask.shape[-1]])
+    mask = torch.from_numpy(mask).unsqueeze(0).to(device=device)
+    return img_t, mask.shape[2:]
 
 
 def adjust_img( img, height, width ):

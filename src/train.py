@@ -13,7 +13,7 @@ from functions_io import *
 def get_args():
     parser = argparse.ArgumentParser(description='Train model with input images and target masks',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-d', '--dataset-dir', metavar='D', type=str, default='./dataset',
+    parser.add_argument('-d', '--dataset-dir', metavar='D', type=str, default='./LIVECell_dataset',
                         help='Dataset directory path', dest='dataset_dir')
     parser.add_argument('-o', '--output-dir', metavar='O', type=str, nargs='?', default='./result/train',
                         help='output directory?', dest='output_dir')
@@ -25,11 +25,11 @@ def get_args():
                         help='First num of kernels', dest='first_num_of_kernels')
     parser.add_argument('-conf', '--pse-conf', metavar='PSEC', type=float, nargs='?', default=1.0,
                         help='the confidence of pseudo label?', dest='c_conf')
-    parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='normal',
+    parser.add_argument('-scaling', '--scaling-type', metavar='SM', type=str, nargs='?', default='unet',
                         help='scaling method??', dest='scaling_type')
-    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=3,
+    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=400,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=2,
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=16,
                         help='Batch size', dest='batchsize')
     parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.001,
                         help='Learning rate', dest='lr')
@@ -120,8 +120,21 @@ def train_net(net_1,
         diff_s_t = len( trains_t ) - len( trains_s )
         len_train = len( trains_t )
         source_extend = True
-        
-            
+
+    # adjust num of source & target data
+    len_trs = len(trains_s)
+    if source_extend:
+        if diff_s_t > len_trs:
+            diff_s_t_2 = diff_s_t - len_trs
+            tmps = trains_s.copy()
+            trains_s.extend( tmps )
+            trains_s.extend( random.sample( trains_s, diff_s_t_2 ) )
+        else:
+            trains_s.extend( random.sample( trains_s, diff_s_t ) )
+
+    # adjust num of source & target data
+    if not source_extend:
+        trains_t.extend( random.sample( trains_t, diff_s_t ) )
     # load val images
     valtargetFiles = glob.glob( f'{targetDir}/val/*' )
 
@@ -146,8 +159,6 @@ def train_net(net_1,
     val_iou_t1_list = []
     val_iou_t2_list = []
     min_val_s_loss_1 = 10000.0
-
-    len_trs = len(trains_s)
     
     for epoch in range(epochs):
         
@@ -155,23 +166,11 @@ def train_net(net_1,
         train_s = []
         train_t = []
 
-        # adjust num of source & target data
-        if source_extend:
-            if diff_s_t > len_trs:
-                diff_s_t_2 = diff_s_t - len_trs
-                tmps = trains_s.copy()
-                trains_s.extend( tmps )
-                trains_s.extend( random.sample( trains_s, diff_s_t_2 ) )
-            else:
-                trains_s.extend( random.sample( trains_s, diff_s_t ) )
         # random cropping source from mirror pad. img
         for train_img_list in trains_s:
             train_s.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
         random.shuffle( train_s )
-        
-        # adjust num of source & target data
-        if not source_extend:
-            trains_t.extend( random.sample( trains_t, diff_s_t ) )
+
         # random cropping target from mirror pad. img
         for train_img_list in trains_t:
             train_t.append( random_cropping( train_img_list[0], train_img_list[1], 272, 352 ) )
@@ -336,7 +335,8 @@ def train_net(net_1,
 
         with open(path_lossList, "wb") as tf:
             pickle.dump(my_dict, tf)
-                
+
+        torch.cuda.empty_cache()
     
     #segmentation loss graph
     
@@ -353,7 +353,7 @@ if __name__ == '__main__':
     args = get_args()
     
     os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu_no}'
-    device = torch.device(f'cuda:{args.gpu_no}' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
 
     # fix the seed
     torch_fix_seed(args.seed)
